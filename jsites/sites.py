@@ -300,8 +300,12 @@ class ModelFormController(ModelController):
     details = setopt(details, urlname='details', urlregex=r'^(?P<content_id>.+)/$')
     # }}}
     # {{{ forms
-    def get_reuse_admin(self):
-        return True
+    def get_use(self):
+        return (
+            #'adminform_object',
+            'multilevel_fieldsets_addon',
+            'adminformset_objects',
+        )
 
     def forms(self):
         if self.request.method == 'POST':
@@ -315,24 +319,31 @@ class ModelFormController(ModelController):
                 self.save_form()
                 self.save_formsets()
         
-        self.media = self.media + self.form_object.media
+        # admin js deps (like jquery for jsites)
+        if 'adminform_object' in self.use \
+            or 'adminformset_objects' in self.use:
+            core = settings.ADMIN_MEDIA_PREFIX+'js/core.js'
+            i18n = settings.JSITES_MEDIA_PREFIX+'js/admin.jsi18n.js'
+            self.media.add_js([core, i18n])
+        # don't leave out any form/formset object media
+        self.media += self.form_object.media
         for formset_object in self.formset_objects:
             self.media += formset_object.media
-
+        # allow template overload per controller-urlname/action
         self.template = [
             'jsites/%s/forms.html' % self.urlname,
             'jsites/forms.html',
         ]
 
-        if not self.reuse_admin:
-            self.add_to_context('formset_objects')
+        # figure context
+        if not 'adminform_object' in self.use:
             self.add_to_context('form_object')
         else:
             self.add_to_context('adminform_object')
+        if not 'adminformset_objects' in self.use:
+            self.add_to_context('formset_objects')
+        else:
             self.add_to_context('admin_formset_objects')
-            core = settings.ADMIN_MEDIA_PREFIX+'js/core.js'
-            i18n = settings.JSITES_MEDIA_PREFIX+'js/admin.jsi18n.js'
-            self.media.add_js([core, i18n])
 
     def get_adminform_object(self):
         adminform_object = helpers.AdminForm(self.form_object, self.fieldsets, self.prepopulated_fields)
