@@ -10,7 +10,7 @@
 /*styles de blocs*/
 @import "header.css";
 @import "footer.css";
-/* @import "grille.css"; */
+@import "grille.css";
 /*Modules*/
 /*Mise en couleurs*/
 @import "couleurs.css";
