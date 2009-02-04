@@ -23,7 +23,7 @@ import jsites
 import widgets
 from django.contrib.admin import helpers
 from django.contrib.admin import widgets as admin_widgets
-from pgv import jobject
+from ppv import jobject
 # }}}
 # {{{ Exceptions
 class AlreadyRegistered(Exception):
