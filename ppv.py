@@ -1,4 +1,5 @@
 PROFILE=('pri', 'loop', 'method')
+#PROFILE=()
 TEST=True
 PROFILE_INDENT='    '
 
@@ -43,7 +44,7 @@ class ProgrammablePropertyInitialiser(object):
                     if not stack:
                         raise PropertyInitialiserMissing(self, name)
                     item = 0
-                    if 'loop' in PROFILE:
+                    if 'stack' in PROFILE:
                         print "%sNew stack of classes to check %s" % (
                             self._indent*PROFILE_INDENT, unicode(stack))
                 # get next parent
@@ -51,7 +52,7 @@ class ProgrammablePropertyInitialiser(object):
                 item+= 1
                 if 'loop' in PROFILE:
                     print "%sChecking for %s (#%s) or %s() in %s" % (
-                        self._indent*PROFILE_INDENT, self._getter(name), item, name, cls)
+                        self._indent*PROFILE_INDENT, name, item,  self._getter(name), cls)
         
         # its supposed to be a un-initialised variable
         # class getters in the current class have priority
@@ -129,6 +130,8 @@ if TEST:
             return 'Z'
     class jtestB(jtestA):
         testB=True
+        def somemethod(self):
+            self.somemethod_run = True
     class jtestBB(jtestA):
         testBB=True
         def get_testB(self):
@@ -156,10 +159,10 @@ if TEST:
     if not jtestA.testA == test.testA \
         or not jtestBB.testBB == test.testBB \
         or not jtestC.testC == test.testC:
-        print "Simple class variable overloading fails"
+        print "!Simple class variable overloading fails"
     # make sure the most recent getter is ran
     if not test.testD == False:
-        print "Got %s instead of expected %s for property %s" % (
+        print "!Got %s instead of expected %s for property %s" % (
             test.testD, False, "testD")
     # this test demonstrates that you should use as much getters
     # as possible, and not define default values with class
@@ -178,11 +181,15 @@ if TEST:
         # reset indentation
         test._indent=-1
     if fail:
-        print "Excepted a PropertyInitialiserMissing for test_LOL"
+        print "!Excepted a PropertyInitialiserMissing for test_LOL"
 
     test.test_LOL = "LOL"
     if not test.test_LOL == "LOL":
-        print "Can't even set a variable"
+        print "!Can't even set a variable"
 
     if not test.chain_W == 'Z':
-        print "W problem"
+        print "!W problem"
+
+    test.somemethod()
+    if not test.somemethod_run:
+        print "!Couldn't run regular method"
