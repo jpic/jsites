@@ -1,0 +1,18 @@
+{% extends 'jsites/base.html' %}
+
+{% load object_fields %}
+
+{% block contents %}
+
+<table class="objectinfo">
+    {% for field in content_fields %}
+    <tr>
+        <th>{{ field|capfirst }}</th>
+        <td>
+            {{ field|prop:content_object }}
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+{% endblock %}

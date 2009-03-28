@@ -1,0 +1,86 @@
+{% extends 'jsites/base.html' %}
+
+{% load object_fields %}
+{% load i18n %}
+
+{% block extrastyle %}
+#add_object, #hide_add_object
+{
+    display: none;
+}
+
+table
+{
+    text-align: center;
+}
+{% endblock %}
+
+{% block extrascript %}
+function show_add_object()
+{
+    $('#add_object').show();
+    $('#show_add_object').hide();
+    $('#hide_add_object').show();
+}
+
+function hide_add_object()
+{
+    $('#add_object').hide();
+    $('#show_add_object').show();
+    $('#hide_add_object').hide();
+}
+{% endblock %}
+
+{% block jquery %}
+$('#show_add_object').click(function(event){
+    event.preventDefault();
+    show_add_object();
+})
+$('#hide_add_object').click(function(event){
+    event.preventDefault();
+    hide_add_object();
+})
+{% endblock %}
+{% block contents %}
+
+    <h1>{{ object.model.verbose_name|capfirst }}: {{ object }}</h1>
+    
+    <table class="objectinfo">
+        <thead>
+            <tr>
+            {% for field in fields %}
+                <th>{{ field|capfirst }}</th>
+            {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for object in object_list %}
+            <tr>
+                {% for field in fields %}
+                <td>
+                    {{ field|prop:object }}
+                </td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <a id="hide_add_object" href="javascript:;" title="{% trans "Cancel add object" %}">{% trans "Cancel add object" %}</a>
+    <a id="show_add_object" href="{{ form.action_url }}" title="{% trans "Add object" %}">{% trans "Add object" %}</a>
+
+    <form method="post" id="add_object" action="{{ form.action_url }}">
+        <table>
+            {{ form }}
+            <tr>
+                <th>{% trans "Submit" %}</th>
+                <td>
+                    <input type="hidden" name="next" value="{% if next %}{{ next }}{% else %}{% if request.path %}{{ request.path }}{% else %}/dashboard{% endif %}{% endif %}" />
+
+                    <input type="submit" value="{{ form.submit_name }}" name="submit" />
+                </td>
+            </tr>
+        </table>
+    </form>
+
+{% endblock %}
