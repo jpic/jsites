@@ -1,0 +1,8 @@
+Planning
+
+========= == ===========================================================
+0.0alpha0 2H details view correctly displays any kind of field
+0.0alpha1 2H form view, create/edit urls, with url->field pre-population
+0.0alpha2 2H integration of search engine
+0.0beta0  2H fix bugs while integrating to cp/mmm
+========= == ===========================================================
