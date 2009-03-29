@@ -8,5 +8,3 @@ class CarController(jsites.Controller):
 
 site = jsites.ControllerWrapper('sitename')
 site.register(CarController('carlol'))
-
-print site.get_urls(), 'and for carcontr', CarController('carlol').get_urls()
