@@ -17,14 +17,15 @@ def prop(value, arg):
                                    writer_name='html4css1')
         return mark_safe(parts['fragment'])
 
-    if field.__class__.__name__ == 'ManyRelatedManager':
-        if not field.count():
+    if field.__class__.__name__ == 'ManyRelatedManager' \
+        or field.__class__.__name__ == 'RelatedObject':
+        if not getattr(object, prop).count():
             return '0'
         
         html = '<ul>'
-        for value in field.all():
+        for value in getattr(object, prop).all():
             html += '<li>%s</li>' % (value,)
         html += '</ul>'
         return mark_safe(html)
 
-    return value
+    return getattr(object, prop)
