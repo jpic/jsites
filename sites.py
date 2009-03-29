@@ -62,11 +62,30 @@ class ControllerBase(object):
 
         return context
 
+    def reset(self, *variables):
+        for variable in variables:
+            if hasattr(self, variable):
+                delattr(self, variable)
+
+    def prerun(self):
+        """
+        Default configuration assumes that:
+        - each request can carry its own content_id and object
+        This methods should be overloaded for controllers depending on one
+        arbitary content_object and id: don't do the reset() call
+        It should be overloaded and reset('content_class') should be called
+        for controllers intended to use with different content_class, eliged
+        per-request (in set_content_class()).
+        """
+        self.reset('content_id', 'content_object')
+
     def run(self, request, *args, **kwargs):
+        self.prerun()
+
         self.request = request
         self.args = args
         self.kwargs = kwargs
-        
+ 
         # Set the global context
         self.context = self.get_context()
         # Set action method
@@ -107,13 +126,14 @@ class ControllerBase(object):
 
     def set_content_id(self):
         self.content_id = self.kwargs['content_id']
+        print "Set content id"
 
     def set_content_object(self):
         if not hasattr(self, 'content_class'):
             self.set_content_class()
         if not hasattr(self, 'content_id'):
             self.set_content_id()
-        self.content_object = self.content_class(self.content_id)
+        self.content_object = self.content_class.objects.get(pk=self.content_id)
 
     def set_content_fields(self):
         if not hasattr(self, 'content_class'):
