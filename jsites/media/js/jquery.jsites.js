@@ -484,7 +484,7 @@ jpicTabManager.writeTabs = function(element) {
         links.push(tab.getHtml());
     }
 
-    element.html(links.join('|'));
+    element.html('<ul><li>' + links.join('</li><li>') + '</li></ul>');
     
     for(var tabid in this.fieldsets)
     {
