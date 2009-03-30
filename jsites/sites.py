@@ -31,13 +31,19 @@ def setopt(func, *args, **kwargs):
     return func
 
 class LazyProperties(object):
+    PROFILE=False
     def __getattr__(self, name):
         try:
             return super(LazyProperties, self).__getattribute__(name)
         except AttributeError:
+            if LazyProperties.PROFILE:
+                print "AttributeError caugh in %s for %s" % (self.__class__, name)
             # pass out if its not something we want to touch
             if name[:1] == '_':
                 return super(LazyProperties, self).__getattribute__(name)
+            # don't let it recurse if something is not properly configured
+            if name.find('get_get_') == 0:
+                raise Exception("Recursion predicted in %s for attribute %s could not be found, please implement function %s" % (self.__class__, name, name[4:]))
             # try to get it from class dict
             if name in self.__class__.__dict__:
                 return self.__class__.__dict__[name]
