@@ -35,9 +35,10 @@ class LazyProperties(object):
         try:
             return super(LazyProperties, self).__getattribute__(name)
         except AttributeError:
+            # pass out if its not something we want to touch
+            if name[:1] == '_':
+                return super(LazyProperties, self).__getattribute__(name)
             # try to get it from class dict
-            print 'search for %s in %s' % (name, self.__class__.__name__)
-            print self.__class__.__dict__
             if name in self.__class__.__dict__:
                 return self.__class__.__dict__[name]
             # try to find the getter
