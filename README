@@ -8,5 +8,6 @@ Planning
 0.0alpha4 1H integration of jmenu for navigation
 0.0alpha5 1H client side field level constraints support in controllers
 0.0beta0  2H fix bugs while integrating to cp/mmm
-0.1          server-side field level constraints support
+0.1alpha0 2H implement i18n, add english translation
+0.1alpha1 5H  server-side field level constraints support
 ========= == ===========================================================
