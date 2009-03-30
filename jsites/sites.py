@@ -16,6 +16,7 @@ LOGIN_FORM_KEY = 'this_is_the_login_form'
 from django.forms.models import modelform_factory
 
 import copy
+from django import forms
 
 class AlreadyRegistered(Exception):
     pass
@@ -47,6 +48,16 @@ class LazyProperties(object):
                 delattr(self, name)
 
 class ControllerBase(LazyProperties):
+    class Media:
+        js = (
+            'jquery.min.js',
+            'offline_tabs.js',
+        )
+    _media = Media
+
+    def get_media(self):
+        return forms.Media(js=self._media.js)
+
     def __init__(self, name):
         self.name = name
         self.urlname = name
@@ -109,10 +120,10 @@ class ControllerBase(LazyProperties):
     def get_context(self):
         context = {
             'controller': self,
+            'media': self.media,
         }
         if hasattr(self, 'parent'):
             context['parent'] = self.parent
-
         return context
 
     def add_to_context(self, name):
