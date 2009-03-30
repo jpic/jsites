@@ -48,13 +48,13 @@ class LazyProperties(object):
 class ControllerBase(LazyProperties):
     class Media:
         js = (
+            'admin.urlify.js',
             'jquery.min.js',
-            'offline_tabs.js',
         )
     _media = Media
 
     def get_media(self):
-        return forms.Media(js=self._media.js)
+        return forms.Media(js=['%s/js/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in self._media.js])
 
     def __init__(self, name):
         self.name = name
@@ -272,10 +272,13 @@ class ControllerWrapper(Controller):
     def get_urls(self):
         urlpatterns = super(ControllerWrapper, self).get_urls()
 
+        import jsites
         # Add in each model's views.
         for controller in self._registry.values():
             urlpatterns += patterns('',
-                url(r'^%s/%s/' % (self.urlname, controller.urlname), include(controller.urls))
+                url(r'^%s/%s/' % (self.urlname, controller.urlname), include(controller.urls)),
+                (r'^media/(?P<path>.*)$', 'django.views.static.serve',
+                    {'document_root': '%s/media' % jsites.__path__[0]}),
                 )
         return urlpatterns
 
