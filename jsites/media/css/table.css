@@ -1,0 +1,25 @@
+table { 
+	width: 98%;
+	border-collapse:collapse;
+	margin: 1%;
+	border:0;
+}
+table table {border:0;}
+.colgauche, .coldroite{width:50%;}
+.coltiers{width:33%;}
+table *{vertical-align:top;}
+th,td { padding: 4px; }
+thead{background:#efefef; font-weight:bold;
+border-bottom:1px solid #006913;
+}
+thead th, tbody th  {color: #666 }
+thead tr th, thead th td{text-align:center;}
+thead tr th.header{text-align:center;background:#efefef;
+}
+table.border{
+border:1px solid #006913;
+}
+
+
+/*#descriptif table{width:50%; display:inline;}
+#complementaires table{width:33%; display:inline;}*/

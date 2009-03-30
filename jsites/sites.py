@@ -50,11 +50,19 @@ class ControllerBase(LazyProperties):
         js = (
             'admin.urlify.js',
             'jquery.min.js',
+            'jquerycssmenu.js',
         )
+        css = {
+            'all': ('jquerycssmenu.css', 'style.css'),
+        }
     _media = Media
 
     def get_media(self):
-        return forms.Media(js=['%s/js/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in self._media.js])
+        js=['%s/js/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in self._media.js]
+        css={}
+        for type in self._media.css:
+            css[type]=['%s/css/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in self._media.css[type]]
+        return forms.Media(js=js, css=css)
 
     def __init__(self, name):
         self.name = name
@@ -78,6 +86,8 @@ class ControllerBase(LazyProperties):
         self.reset('content_id', 'content_object', 'fields_initial_values')
         self.reset('response', 'context', 'action', 'action_name')
         self.reset('template')
+        # Todo: figure if that could be cached somehow (at least for parent menu)
+        self.reset('menu')
 
     def run(self, request, *args, **kwargs):
         self.request = request
@@ -120,8 +130,15 @@ class ControllerBase(LazyProperties):
             'controller': self,
             'media': self.media,
         }
+        if hasattr(self, 'get_menu'):
+            context['menu'] = self.menu
         if hasattr(self, 'parent'):
             context['parent'] = self.parent
+            if hasattr(self.parent, 'get_menu'):
+                if 'menu' in context:
+                    context['menu'] += self.parent.menu
+                else:
+                    context['menu'] = self.parent.menu
         return context
 
     def add_to_context(self, name):

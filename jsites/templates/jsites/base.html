@@ -22,6 +22,17 @@
     {
         $.getScript('/jtest/media/js/jquery.jsites.js', function() {
         {% block jquery %}
+        
+        // setup css menu
+        var arrowimages={
+            down:[ 'downarrowclass',  '/jtest/media/img/arrow-down.gif', 25],
+            right:['rightarrowclass', '/jtest/media/img/arrow-right.gif'],
+        };
+        // firecss menu
+        jquerycssmenu.buildmenu("breadcrumbs", arrowimages)
+
+        // fire jsites ui
+        ui.writeTabs($('#tabs'));
         ui.update();
         {% endblock jquery %}
         });
@@ -31,20 +42,21 @@
 </head>
 
 <body>
+    <div id="header">
+    </div>        
+    
     <div id="page">
-        <div id="header">
-            <div id="cssmenu" class="jquerycssmenu breadcrumbs">
-            <ul>
-            {{ projectnav|safe }}
-            {{ nav|safe }}
-            </ul>
+        
+        <div id="breadcrumbs" class="jquerycssmenu breadcrumbs">
+            {{ menu.render|safe }}
             <br style="clear: left" />
-            </div>
-        </div>        
+        </div>
+
         <div id="main">
             {% block contentwrapper %}
             <div id="wrapper">
                 <div id="content">
+                    <div class="tabs" id="tabs"><!-- filled by jquery.jsites.js --></div>
                 {% block messages %}
                 {% if messages %}
                 <ul>
@@ -61,6 +73,7 @@
             </div>
             {% endblock %}
         </div>
+
         <div id="footer">
         </div>
     </div>

@@ -626,7 +626,6 @@ ui = new function() {
     this.items = [];
     jpicTabManager.parseFieldsets();
     jpicTabManager.parseDivTabs();
-    jpicTabManager.writeTabs();
 
     for(tabid in jpicTabManager.fieldsets)
     {
@@ -634,6 +633,9 @@ ui = new function() {
         this.items[fieldset.name] = fieldset.getTab();
     }
 };
+ui.writeTabs = function(element) {
+    jpicTabManager.writeTabs(element);
+}
 /*
  * Moves field with sourceFieldName after destinationFieldName, on the same row.
  *

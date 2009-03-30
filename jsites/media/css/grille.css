@@ -1,0 +1,15 @@
+.grid_25 {
+	width: 25%;
+	float: left;
+	padding: 0;
+}
+.grid_50 {
+	width: 50%;
+	float: left;
+	padding: 0;
+}
+.grid_33 {
+	width: 196px;
+	float: left;
+	padding: 0;
+}

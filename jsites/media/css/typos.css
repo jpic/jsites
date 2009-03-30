@@ -1,0 +1,25 @@
+body{font-family:'Trebuchet MS', Verdana, Helvetica, Arial, sans-serif;font-size:60%;}
+/* ### tites ### */
+h1, h2, h3, h4, h5, h6{font-weight:bold;margin:0 0 5px 0;}
+h1{font-size:140%;}
+h2{font-size:130%;}
+h3{font-size:120%}
+h4{font-size:110%}
+h5{font-size:110%;}
+h6{font-size:105%;}
+/* ### texte ### */
+p{line-height:1.1em;margin:0 0 0.1em 0;}
+cite, blockquote{font-style:italic}
+blockquote{margin:0 0 1em 1.5em}
+acronym, abbr{letter-spacing:.07em;    border-bottom:.1em dashed #c00;    cursor:help;  }
+hr{color:#fff;    background:transparent;    margin:0 0 0.5em 0;    padding:0 0 0.5em 0;    border:0;    border-bottom:1px #eee solid;  }
+/* ### Classes texte ### */
+#footer{font-size:small;}
+/* ### Listes #### */
+ul, ol, dl{line-height:1.5em;margin:0 0 5px 1em}
+li{margin-left:1.2em;line-height:1.1em;list-style-type:none;list-style-image:none;}
+dt{font-weight:bold}
+dd{margin:0 0 1em 2em}
+/* ### Liens #### */
+a{color:#000;text-decoration:none;}
+a:hover{color:#666}
