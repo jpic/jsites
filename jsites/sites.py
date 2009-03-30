@@ -66,7 +66,7 @@ class ControllerBase(LazyProperties):
         to let the user create a self.reponse directly in the view, or
         call render_to_response otherwise.
         """
-        self.reset('content_id', 'content_object')
+        self.reset('content_id', 'content_object', 'fields_initial_values')
         self.reset('response', 'context', 'action', 'action_name')
         self.reset('template')
 
@@ -103,7 +103,7 @@ class ControllerBase(LazyProperties):
                         self.run,
                         name=urlname,
                         kwargs={'action': action_method_name})
-                )        
+                )
         return urlpatterns
 
     def get_context(self):
@@ -126,7 +126,17 @@ class ControllerBase(LazyProperties):
     def get_content_object(self):
         if self.content_id:
             return self.content_class.objects.get(pk=self.content_id)
+        # prepopulate where possible
+        if self.fields_initial_values:
+            return self.content_class(**self.fields_initial_values)
         return self.content_class()
+
+    def get_fields_initial_values(self):
+        from_get = {}
+        for key, value in self.request.GET.items():
+            if key in self.content_class._meta.get_all_field_names():
+                from_get[key.encode()] = value
+        return from_get
 
     def get_content_fields(self):
         return self.content_class._meta.get_all_field_names()
@@ -188,14 +198,11 @@ class Controller(ControllerBase):
     def prerun(self):
         self.reset('form_object')
         super(Controller, self).prerun()
-        print self.__dict__
 
     def save_form(self):
         self.model = self.form_object.save()
 
     def get_form_class(self):
-        if 'form_object' in self.__dict__:
-            return self.form_object.__class__
         cls = self.content_class.__name__ + 'Form'
         return modelform_factory(
             fields=self.form_fields,
