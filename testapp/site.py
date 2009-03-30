@@ -21,6 +21,6 @@ class SeatController(jsites.Controller):
 
 site = CarSite()
 site.register(models.Car, CarController)
-site.register(models.Wheel, WheelController)
+site.register(models.Whell, WheelController)
 site.register(models.Seat, SeatController)
 print site.get_urls()

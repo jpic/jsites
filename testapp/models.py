@@ -15,8 +15,6 @@ class Whell(models.Model):
 
 class Seat(models.Model):
     car = models.ForeignKey('Car', related_name="seats")
-    side = models.CharField(max_length=1)
+    foo = models.CharField(max_length=4, verbose_name='foo', null=True, blank=True)
     def __unicode__(self):
-        return self.side
-
-
+        return self.foo

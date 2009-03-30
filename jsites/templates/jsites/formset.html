@@ -6,7 +6,9 @@
 {% block contents %}
 <form action="{{ form_object.action_url }}" method="post" id="object_form">
 <table>
+{% for formset_object in formset_objects %}
 {{ formset_object }}
+{% endfor %}
 {{ form_object }}
 <tr>
     <td colspan="2">

@@ -16,11 +16,14 @@ LOGIN_FORM_KEY = 'this_is_the_login_form'
 from django import forms
 from jadmin import menus
 from django.forms.models import modelform_factory, inlineformset_factory, modelformset_factory
+from django.db.models import fields
+from django.db.models import related
 
 class AlreadyRegistered(Exception):
     pass
-
 class NotRegistered(Exception):
+    pass
+class NotAsInline(Exception):
     pass
 
 def setopt(func, *args, **kwargs):
@@ -72,6 +75,11 @@ class ControllerBase(LazyProperties):
 
     def __init__(self, inline=None):
         self.inline = inline
+        if self.inline:
+            # reference to the "running" context
+            self.request = self.inline.request
+            self.kwargs = self.inline.kwargs
+            self.args = self.inline.args
 
     def get_media(self):
         js=['%s/js/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in self._media.js]
@@ -154,7 +162,8 @@ class ControllerBase(LazyProperties):
         return from_get
 
     def get_content_fields(self):
-        return self.content_class._meta.get_all_field_names()
+        f = self.content_class._meta.get_all_field_names()
+        return f
 
     def get_content_class(self):
         if self.content_object:
@@ -189,7 +198,7 @@ class ControllerBase(LazyProperties):
 
 class Controller(ControllerBase):
     actions = ('create', 'list', 'edit', 'details')
-
+    
     @classmethod
     def get_menu(self):
         menu = menus.Menu()
@@ -202,28 +211,40 @@ class Controller(ControllerBase):
         self.add_to_context('content_object')
         self.add_to_context('content_fields')
     details = setopt(details, urlname='details', urlregex=r'^(?P<content_id>.+)/$')
-
-    def formset(self):
+    
+    def forms(self):
         if self.request.method == 'POST':
-            if self.formset_object.is_valid() and self.form_object.is_valid():
+            valid = False
+            if self.form_object.is_valid():
+                valid = True
+                for formset in self.formset_objects:
+                    if not formset.is_valid():
+                        valid = False
+            if valid:
                 self.save_form()
-                self.save_formset()
+                self.save_formsets()
         self.template = 'jsites/formset.html'
-        self.add_to_context('formset_object')
+        self.add_to_context('formset_objects')
         self.add_to_context('form_object')
     
     def edit(self):
-        return self.formset()
+        return self.forms()
     edit = setopt(edit, urlname='edit', urlregex=r'^edit/(?P<content_id>.+)/$')
 
     def create(self):
-        return self.formset()
+        return self.forms()
     create = setopt(create, urlname='create', urlregex=r'^create/$')
 
     def save_form(self):
         self.model = self.form_object.save()
 
     def get_form_class(self):
+        """
+        Returns a form class for self.content_class.
+
+        Uses self.form_fields, and self.get_formfield
+        as form field for db field callback.
+        """
         cls = self.content_class.__name__ + 'Form'
         return modelform_factory(
             fields=self.form_fields,
@@ -232,17 +253,134 @@ class Controller(ControllerBase):
         )
 
     def get_form_fields(self):
-        return None
+        return self.local_fields
+
+    def get_inline_formset_fields(self):
+        import copy
+        fields = copy.copy(self.local_fields)
+        fields.remove(self.inline_relation_field.name)
+        return fields
+
+    def get_local_fields(self):
+        local_fields = []
+        for field_name in self.content_fields:
+            field = self.content_class._meta.get_field_by_name(field_name)[0]
+            if not isinstance(field, (fields.AutoField, related.RelatedObject)):
+                local_fields.append(field_name)
+        return local_fields
 
     def get_formfield(self, f):
+        """
+        Default formfield for db field callback to use in our form generators.
+        """
         return f.formfield()
 
     def get_form_object(self):
+        """
+        Returns a form object to edit self.content_object or create
+        (instanciate and save) a self.content_class
+        """
         if self.request.method == 'POST':
             form = self.form_class(self.request.POST, instance=self.content_object)
         else:
             form = self.form_class(instance=self.content_object)
         return form 
+
+    def save_formsets(self):
+        for formset_object in self.formset_objects:
+            formset_object.save()
+
+    def get_formset_objects(self):
+        """
+        Return a list of formset objects.
+
+        The form() view passes both the form_object and formset_objects.
+        To set up the formset another controller would get in his list
+        formset_objects, overload get_formset_object().
+
+        Uses self.virtual_fields.
+        """
+        objects = []
+        for prop in self.virtual_fields:
+            # figure what model we want an inline from
+            related = self.content_class._meta.get_field_by_name(prop)[0].model
+            # rely on the parent to get the controller class we want
+            controller_class = self.parent.get_controller(related)
+            # fire it as an inline of this controller
+            controller = controller_class(self)
+            # get its object_formset
+            formset = controller.formset_object
+            objects.append(formset)
+        return objects
+
+    def get_virtual_fields(self):
+        """
+        Returns a list of virtual field names, virtual fields are doable by
+        setting 'related_name' in a FK pointing to self.content_class.
+        """
+        virtual_fields = []
+        for field_name in self.content_fields:
+            field = self.content_class._meta.get_field_by_name(field_name)[0]
+            if isinstance(field, related.RelatedObject) \
+                and not isinstance(field, fields.AutoField):
+                virtual_fields.append(field_name)
+        return virtual_fields
+
+    def get_formset_object(self):
+        """
+        Return a formset object.
+
+        The formset object uses self.inline.content_object as related object
+        instance if the controller was instanciated with the "inline" argument.
+
+        Uses self.formset_fields or self.inline_formset_fields
+        """
+        kwargs = {}
+        if self.inline:
+            kwargs['instance'] = self.inline.content_object
+        else:
+            kwargs['instance'] = self.content_object
+        
+        if self.request.method == 'POST':
+            formset = self.formset_class(self.request.POST, **kwargs)
+        else:
+            formset = self.formset_class(**kwargs)
+        return formset 
+
+    def get_formset_class(self):
+        """
+        Returns a formset class.
+
+        The formset class uses self.inline.content_class as related class
+        if the controller was instanciated with the "inline" argument.
+
+        Uses self.formset_fields, or self.inline_formset_fields.
+        """
+        kwargs = {}
+        if self.inline:
+            kwargs['fields'] = self.inline_formset_fields
+            return inlineformset_factory(self.inline.content_class,
+                self.content_class, **kwargs)
+        else:
+            kwargs['fields'] = self.formset_fields
+            return modelformset_factory(self.content_class, **kwargs)
+
+    def get_formset_fields(self):
+        return self.local_fields
+
+    def get_inline_relation_field(self):
+        if not self.inline:
+            raise NotAsInline()
+
+        for field_name in self.inline.content_fields:
+            field = self.inline.content_class._meta.get_field_by_name(field_name)[0]
+            if not hasattr(field, 'field'):
+                continue
+            field = field.field
+            if not hasattr(field, 'rel') or not hasattr(field.rel, 'to'):
+                continue
+            if field.rel.to == self.inline.content_class:
+                return field
 
     def get_search_engine(self):
         import jsearch
@@ -280,12 +418,16 @@ class ControllerWrapper(Controller):
         super(ControllerWrapper, self).__init__(*args, **kwargs)
         self._registry = {} # controller.name -> controller class
     
-    def register(self, controller_class):
+    def register(self, model_class, controller_class):
         if controller_class.name in self._registry.keys():
             raise AlreadyRegistered('A controller with name % is already registered on site %s' % (self.name, controller.name))
 
         controller_class.parent = self
-        self._registry[controller_class.name] = controller_class
+        controller_class.content_class = model_class
+        self._registry[model_class] = controller_class
+
+    def get_controller(self, model_class):
+        return self._registry[model_class]
 
     def get_urls(self):
         urlpatterns = super(ControllerWrapper, self).get_urls()
@@ -294,7 +436,6 @@ class ControllerWrapper(Controller):
         # Add in each model's views.
         print self._registry
         for controller_class in self._registry.values():
-            print controller_class.name, controller_class.get_urls()
             urlpatterns += patterns('',
                 url(r'^%s/%s/' % (self.urlname, controller_class.urlname), include(controller_class.get_urls())),
                 (r'^media/(?P<path>.*)$', 'django.views.static.serve',
