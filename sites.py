@@ -1,3 +1,4 @@
+# {{{ imports
 import re
 from django import http, template
 from django.core.exceptions import ImproperlyConfigured
@@ -18,22 +19,25 @@ from jadmin import menus
 from django.forms.models import modelform_factory, inlineformset_factory, modelformset_factory
 from django.db.models import fields
 from django.db.models import related
-
+import jsites
+# }}}
+# {{{ Exceptions
 class AlreadyRegistered(Exception):
     pass
 class NotRegistered(Exception):
     pass
 class NotAsInline(Exception):
     pass
-
-def setopt(func, *args, **kwargs):
+# }}}
+def setopt(func, *args, **kwargs): # {{{
     for arg in args:
         setattr(func, arg, True)
     for kwarg, value in kwargs.items():
         setattr(func, kwarg, value)
     return func
+# }}}
 
-class LazyProperties(object):
+class LazyProperties(object): # {{{
     PROFILE=False
     def __getattr__(self, name):
         try:
@@ -54,40 +58,24 @@ class LazyProperties(object):
             getter = 'get_%s' % name
             setattr(self, name, getattr(self, getter)())
         return super(LazyProperties, self).__getattribute__(name)
-
-    def reset(self, *variables):
-        for name in variables:
-            print 'resetting', name
-            if name in self.__dict__:
-                delattr(self, name)
-
+# }}}
 class ControllerBase(LazyProperties):
-    class Media:
-        js = (
-            'admin.urlify.js',
-            'jquery.min.js',
-            'jquerycssmenu.js',
-        )
-        css = {
-            'all': ('jquerycssmenu.css', 'style.css'),
-        }
-    _media = Media
-
     def __init__(self, inline=None):
+        """
+        If a controller should pass itself to controllers it invokes as
+        inlines using the "inline" argument.
+    
+        There should be no need for an inline controller to modify the
+        properties of its caller.
+        """
         self.inline = inline
+
         if self.inline:
             # reference to the "running" context
             self.request = self.inline.request
             self.kwargs = self.inline.kwargs
             self.args = self.inline.args
-
-    def get_media(self):
-        js=['%s/js/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in self._media.js]
-        css={}
-        for type in self._media.css:
-            css[type]=['%s/css/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in self._media.css[type]]
-        return forms.Media(js=js, css=css)
-
+    # {{{ static/bootstrap: get_urls, instanciate, run.
     @classmethod
     def instanciate(self, inline=False):
         return self(inline)
@@ -127,7 +115,26 @@ class ControllerBase(LazyProperties):
                         kwargs={'action': action_method_name})
                 )
         return urlpatterns
-
+    # }}}
+    # {{{ media support
+    class Media:
+        js = (
+            'admin.urlify.js',
+            'jquery.min.js',
+            'jquerycssmenu.js',
+        )
+        css = {
+            'all': ('jquerycssmenu.css', 'style.css'),
+        }
+    _media = Media
+    def get_media(self):
+        js=['%s/js/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in self._media.js]
+        css={}
+        for type in self._media.css:
+            css[type]=['%s/css/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in self._media.css[type]]
+        return forms.Media(js=js, css=css)
+    # }}}
+    # {{{ context
     def get_context(self):
         context = {
             'controller': self,
@@ -140,11 +147,20 @@ class ControllerBase(LazyProperties):
 
     def add_to_context(self, name):
         self.context[name] = getattr(self, name)
+    # }}}
+    # {{{ content_{class,id,fields,object}
+    def get_content_class(self):
+        if self.content_object:
+            return self.content_object.__class__
 
     def get_content_id(self):
         if 'content_id' in self.kwargs:
             return self.kwargs['content_id']
         return None
+
+    def get_content_fields(self):
+        f = self.content_class._meta.get_all_field_names()
+        return f
 
     def get_content_object(self):
         if self.content_id:
@@ -153,28 +169,53 @@ class ControllerBase(LazyProperties):
         if self.fields_initial_values:
             return self.content_class(**self.fields_initial_values)
         return self.content_class()
-
-    def get_fields_initial_values(self):
-        from_get = {}
-        for key, value in self.request.GET.items():
-            if key in self.content_class._meta.get_all_field_names():
-                from_get[key.encode()] = value
-        return from_get
-
-    def get_content_fields(self):
-        f = self.content_class._meta.get_all_field_names()
-        return f
-
-    def get_content_class(self):
-        if self.content_object:
-            return self.content_object.__class__
-
+    # }}}
+    # {{{ action, action_name
     def get_action_name(self):
         return self.kwargs['action']
 
     def get_action(self):
         return getattr(self, self.action_name)
+    # }}}
+    def get_fields_initial_values(self):
+        """
+        Parse the request and finds key/values matching self.content_class
+        attribute.
+        """
+        from_get = {}
+        for key, value in self.request.GET.items():
+            if key in self.content_class._meta.get_all_field_names():
+                from_get[key.encode()] = value
+        return from_get
+    # {{{ virtual_fields, inline_relation_fields (model re routines)
+    def get_virtual_fields(self):
+        """
+        Returns a list of virtual field names, virtual fields are doable by
+        setting 'related_name' in a FK pointing to self.content_class.
+        """
+        virtual_fields = []
+        for field_name in self.content_fields:
+            field = self.content_class._meta.get_field_by_name(field_name)[0]
+            if isinstance(field, related.RelatedObject) \
+                and not isinstance(field, fields.AutoField):
+                virtual_fields.append(field_name)
+        return virtual_fields
 
+    def get_inline_relation_field(self):
+        if not self.inline:
+            raise NotAsInline()
+
+        for field_name in self.inline.content_fields:
+            field = self.inline.content_class._meta.get_field_by_name(field_name)[0]
+            if not hasattr(field, 'field'):
+                continue
+            field = field.field
+            if not hasattr(field, 'rel') or not hasattr(field.rel, 'to'):
+                continue
+            if field.rel.to == self.inline.content_class:
+                return field
+    # }}}
+    # {{{ template, response
     def get_template(self):
         if not hasattr(self, 'action'):
             fallback = (
@@ -189,16 +230,15 @@ class ControllerBase(LazyProperties):
         return fallback
 
     def get_response(self):
-        print "Response context", self.context
         return render_to_response(
             self.template,
             self.context,
             context_instance=RequestContext(self.request)
         )
-
+    # }}}
 class Controller(ControllerBase):
-    actions = ('create', 'list', 'edit', 'details')
-    
+    actions = ('create', 'list', 'edit', 'details')    
+    # {{{ menu
     @classmethod
     def get_menu(self):
         menu = menus.Menu()
@@ -206,12 +246,14 @@ class Controller(ControllerBase):
         controller.add('list', '/jtest/sitename/' + self.name)
         controller.add('create', '/jtest/sitename/' + self.name + '/create')
         return menu
-    
+    # }}}
+    # {{{ details
     def details(self):
         self.add_to_context('content_object')
         self.add_to_context('content_fields')
     details = setopt(details, urlname='details', urlregex=r'^(?P<content_id>.+)/$')
-    
+    # }}}
+    # {{{ forms
     def forms(self):
         if self.request.method == 'POST':
             valid = False
@@ -313,19 +355,6 @@ class Controller(ControllerBase):
             objects.append(formset)
         return objects
 
-    def get_virtual_fields(self):
-        """
-        Returns a list of virtual field names, virtual fields are doable by
-        setting 'related_name' in a FK pointing to self.content_class.
-        """
-        virtual_fields = []
-        for field_name in self.content_fields:
-            field = self.content_class._meta.get_field_by_name(field_name)[0]
-            if isinstance(field, related.RelatedObject) \
-                and not isinstance(field, fields.AutoField):
-                virtual_fields.append(field_name)
-        return virtual_fields
-
     def get_formset_object(self):
         """
         Return a formset object.
@@ -368,20 +397,8 @@ class Controller(ControllerBase):
     def get_formset_fields(self):
         return self.local_fields
 
-    def get_inline_relation_field(self):
-        if not self.inline:
-            raise NotAsInline()
-
-        for field_name in self.inline.content_fields:
-            field = self.inline.content_class._meta.get_field_by_name(field_name)[0]
-            if not hasattr(field, 'field'):
-                continue
-            field = field.field
-            if not hasattr(field, 'rel') or not hasattr(field.rel, 'to'):
-                continue
-            if field.rel.to == self.inline.content_class:
-                return field
-
+    # }}}
+    # {{{ search/list view
     def get_search_engine(self):
         import jsearch
         engine = jsearch.ModelSearch(
@@ -404,20 +421,20 @@ class Controller(ControllerBase):
         self.add_to_context('content_class')
         self.add_to_context('content_fields')
     list = setopt(list, urlname='list', urlregex=r'^$')
-
+    # }}}
 class ControllerWrapper(Controller): 
     actions = ('index',)
-
+    def __init__(self, *args, **kwargs):
+        super(ControllerWrapper, self).__init__(*args, **kwargs)
+        self._registry = {} # controller.name -> controller class
+    # {{{ menu
     def get_menu(self):
         menu = menus.Menu()
         for controller in self._registry.values():
             menu += controller.get_menu()
         return menu
- 
-    def __init__(self, *args, **kwargs):
-        super(ControllerWrapper, self).__init__(*args, **kwargs)
-        self._registry = {} # controller.name -> controller class
-    
+    # }}}
+    # {{{ registry routines
     def register(self, model_class, controller_class):
         if controller_class.name in self._registry.keys():
             raise AlreadyRegistered('A controller with name % is already registered on site %s' % (self.name, controller.name))
@@ -428,13 +445,10 @@ class ControllerWrapper(Controller):
 
     def get_controller(self, model_class):
         return self._registry[model_class]
-
+    # }}}
     def get_urls(self):
         urlpatterns = super(ControllerWrapper, self).get_urls()
-
-        import jsites
         # Add in each model's views.
-        print self._registry
         for controller_class in self._registry.values():
             urlpatterns += patterns('',
                 url(r'^%s/%s/' % (self.urlname, controller_class.urlname), include(controller_class.get_urls())),
@@ -442,8 +456,9 @@ class ControllerWrapper(Controller):
                     {'document_root': '%s/media' % jsites.__path__[0]}),
                 )
         return urlpatterns
-
+    # {{{ site views
     def index(self):
         if not settings.DEBUG:
             raise Exception('Cannot list actions if not settings.DEBUG')
     index = setopt(index, urlregex=r'^$', urlname='index')
+    # }}}
