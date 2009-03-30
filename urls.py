@@ -7,7 +7,7 @@ from django.conf.urls.defaults import *
 from testapp import site
 urlpatterns = patterns('',
     # Example:
-    (r'^jtest/', include(site.urls)),
+    (r'^jtest/', include(site.get_urls())),
 
     # Uncomment the admin/doc line below and add 'django.contrib.admindocs' 
     # to INSTALLED_APPS to enable admin documentation:
