@@ -1,0 +1,19 @@
+{% extends 'jsites/base.html' %}
+{% load i18n %}
+
+{% block title %}{{ submit_name }}{% endblock %}
+
+{% block contents %}
+<form action="{{ form_object.action_url }}" method="post" id="object_form">
+<table>
+{{ formset_object }}
+{{ form_object }}
+<tr>
+    <td colspan="2">
+        <input type="submit" value="{{ form.submit_name }}" name="submit" />
+        <input type="hidden" name="next" value="{% if next %}{{ next }}{% else %}{% if request.META.HTTP_REFERER %}{{ request.META.HTTP_REFERER }}{% else %}/dashboard{% endif %}{% endif %}" />
+    </td>
+</tr>
+</table>
+</form>
+{% endblock %}

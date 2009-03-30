@@ -15,6 +15,7 @@ LOGIN_FORM_KEY = 'this_is_the_login_form'
 
 from django.forms.models import modelform_factory
 from django import forms
+from django.forms.formsets import formset_factory
 
 class AlreadyRegistered(Exception):
     pass
@@ -82,10 +83,14 @@ class ControllerBase(LazyProperties):
         Reseting 'response' is critical though, run() returns self.response
         to let the user create a self.reponse directly in the view, or
         call render_to_response otherwise.
+
+        Anyway, if you're experiencing high WHF/minute at some point, then
+        you probably forgot to reset a request-specific variable.
         """
         self.reset('content_id', 'content_object', 'fields_initial_values')
         self.reset('response', 'context', 'action', 'action_name')
         self.reset('template')
+        self.reset('form_object', 'formset_object')
         # Todo: figure if that could be cached somehow (at least for parent menu)
         self.reset('menu')
 
@@ -206,19 +211,21 @@ class Controller(ControllerBase):
         self.add_to_context('content_fields')
     details = setopt(details, urlname='details', urlregex=r'^(?P<content_id>.+)/$')
 
-    def form(self):
+    def formset(self):
         if self.request.method == 'POST':
-            if self.form_object.is_valid():
+            if self.formset_object.is_valid() and self.form_object.is_valid():
                 self.save_form()
-        self.template = 'jsites/form.html'
+                self.save_formset()
+        self.template = 'jsites/formset.html'
+        self.add_to_context('formset_object')
         self.add_to_context('form_object')
     
     def edit(self):
-        return self.form()
+        return self.formset()
     edit = setopt(edit, urlname='edit', urlregex=r'^edit/(?P<content_id>.+)/$')
 
     def create(self):
-        return self.form()
+        return self.formset()
     create = setopt(create, urlname='create', urlregex=r'^create/$')
 
     def prerun(self):
