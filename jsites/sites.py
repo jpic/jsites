@@ -14,8 +14,6 @@ ERROR_MESSAGE = ugettext_lazy("Please enter a correct username and password. Not
 LOGIN_FORM_KEY = 'this_is_the_login_form'
 
 from django.forms.models import modelform_factory
-
-import copy
 from django import forms
 
 class AlreadyRegistered(Exception):
