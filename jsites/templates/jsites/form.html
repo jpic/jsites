@@ -1,7 +1,8 @@
-{% extends 'base.html' %} {% load i18n %}
+{% extends 'jsites/base.html' %}
+{% load i18n %}
 
 {% block title %}{{ submit_name }}{% endblock %}
 
 {% block contents %}
-{% include 'object_form_tags.html' %}
+{% include 'jsites/form_tags.html' %}
 {% endblock %}

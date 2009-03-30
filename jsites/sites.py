@@ -13,6 +13,10 @@ from django.conf.urls.defaults import patterns, url, include
 ERROR_MESSAGE = ugettext_lazy("Please enter a correct username and password. Note that both fields are case-sensitive.")
 LOGIN_FORM_KEY = 'this_is_the_login_form'
 
+from django.forms.models import modelform_factory
+
+import copy
+
 class AlreadyRegistered(Exception):
     pass
 
@@ -63,7 +67,8 @@ class ControllerBase(LazyProperties):
         call render_to_response otherwise.
         """
         self.reset('content_id', 'content_object')
-        self.reset('response', 'context', 'action')
+        self.reset('response', 'context', 'action', 'action_name')
+        self.reset('template')
 
     def run(self, request, *args, **kwargs):
         self.request = request
@@ -94,13 +99,11 @@ class ControllerBase(LazyProperties):
                 urlname = action.urlname
                 urlregex = action.urlregex
                 urlpatterns += patterns('', 
-                    url(
-                        urlregex,
+                    url(urlregex,
                         self.run,
                         name=urlname,
                         kwargs={'action': action_method_name})
-                )
-        
+                )        
         return urlpatterns
 
     def get_context(self):
@@ -127,6 +130,10 @@ class ControllerBase(LazyProperties):
 
     def get_content_fields(self):
         return self.content_class._meta.get_all_field_names()
+
+    def get_content_class(self):
+        if self.content_object:
+            return self.content_object.__class__
 
     def get_action_name(self):
         return self.kwargs['action']
@@ -156,18 +163,58 @@ class ControllerBase(LazyProperties):
         )
 
 class Controller(ControllerBase):
-    actions = ('create', 'edit', 'details', 'list')
+    actions = ('create', 'list', 'edit', 'details')
     
     def details(self):
         self.add_to_context('content_object')
         self.add_to_context('content_fields')
     details = setopt(details, urlname='details', urlregex=r'^(?P<content_id>.+)/$')
 
-            if self.formobj.is_valid():
+    def form(self):
+        if self.request.method == 'POST':
+            if self.form_object.is_valid():
                 self.save_form()
+        self.template = 'jsites/form.html'
         self.add_to_context('form_object')
-    edit = setopt(form, urlname='edit', urlregex=r'^edit/(?P<content_id>.+)/$')
-    create = setopt(form, urlname='create', urlregex=r'^create/$')
+    
+    def edit(self):
+        return self.form()
+    edit = setopt(edit, urlname='edit', urlregex=r'^edit/(?P<content_id>.+)/$')
+
+    def create(self):
+        return self.form()
+    create = setopt(create, urlname='create', urlregex=r'^create/$')
+
+    def prerun(self):
+        self.reset('form_object')
+        super(Controller, self).prerun()
+        print self.__dict__
+
+    def save_form(self):
+        self.model = self.form_object.save()
+
+    def get_form_class(self):
+        if 'form_object' in self.__dict__:
+            return self.form_object.__class__
+        cls = self.content_class.__name__ + 'Form'
+        return modelform_factory(
+            fields=self.form_fields,
+            model=self.content_class,
+            formfield_callback=self.get_formfield
+        )
+
+    def get_form_fields(self):
+        return None
+
+    def get_formfield(self, f):
+        return f.formfield()
+
+    def get_form_object(self):
+        if self.request.method == 'POST':
+            form = self.form_class(self.request.POST, instance=self.content_object)
+        else:
+            form = self.form_class(instance=self.content_object)
+        return form 
 
     def list(self):
         self.fields = self.get_fields()
