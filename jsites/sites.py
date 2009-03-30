@@ -80,30 +80,6 @@ class ControllerBase(LazyProperties):
             css[type]=['%s/css/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in self._media.css[type]]
         return forms.Media(js=js, css=css)
 
-    def prerun(self):
-        """
-        Default configuration assumes that:
-        - each request can carry its own content_id and object
-        This methods should be overloaded for controllers depending on one
-        arbitary content_object and id: don't do the reset() call
-        It should be overloaded and reset('content_class') should be called
-        for controllers intended to use with different content_class, eliged
-        per-request (in set_content_class()).
-
-        Reseting 'response' is critical though, run() returns self.response
-        to let the user create a self.reponse directly in the view, or
-        call render_to_response otherwise.
-
-        Anyway, if you're experiencing high WHF/minute at some point, then
-        you probably forgot to reset a request-specific variable.
-        """
-        self.reset('content_id', 'content_object', 'fields_initial_values')
-        self.reset('response', 'context', 'action', 'action_name')
-        self.reset('template')
-        self.reset('form_object', 'formset_object')
-        # Todo: figure if that could be cached somehow (at least for parent menu)
-        self.reset('menu')
-
     @classmethod
     def instanciate(self, inline=False):
         return self(inline)
@@ -111,14 +87,10 @@ class ControllerBase(LazyProperties):
     @classmethod
     def run(self, request, *args, **kwargs):
         self = self.instanciate()
-
         self.request = request
         self.args = args
         self.kwargs = kwargs
- 
-        # Allow cleaning variable cache
-        self.prerun()
-        
+       
         # Run the action
         # It can override anything that was set by run()
         response = self.action()
@@ -247,10 +219,6 @@ class Controller(ControllerBase):
     def create(self):
         return self.formset()
     create = setopt(create, urlname='create', urlregex=r'^create/$')
-
-    def prerun(self):
-        self.reset('form_object', 'search_engine')
-        super(Controller, self).prerun()
 
     def save_form(self):
         self.model = self.form_object.save()
