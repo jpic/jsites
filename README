@@ -1,13 +1,14 @@
 Planning
 
-========= == ===========================================================
+========= == =================================================================
 0.0alpha0 2H details view correctly displays any kind of field
 0.0alpha1 2H form view, create/edit urls, with url->field pre-population
 0.0alpha2 2H integration of search engine
 0.0alpha3 1H integration of javascript dependencies, offline tab support
 0.0alpha4 1H integration of jmenu for navigation
+0.0alpha5 4H integration of inlines, "just like in admin" (easy migration)
 0.0alpha5 1H client side field level constraints support in controllers
 0.0beta0  2H fix bugs while integrating to cp/mmm
 0.1alpha0 2H implement i18n, add english translation
 0.1alpha1 5H  server-side field level constraints support
-========= == ===========================================================
+========= == =================================================================
