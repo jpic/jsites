@@ -6,28 +6,34 @@
     <!-- Charset -->
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>{% block title %}Bienvenue!{% endblock%}</title>
-    {% block extra %}
     <style type="text/css">
     {% block extrastyle %}
     {% endblock extrastyle %}
     </style>
     {% block extrahead %}
     {% endblock extrahead %}
-    <script type="text/javascript">
-    {% block extrascript %}
-    {% endblock extrascript %}
-    </script>
-    {% endblock extra %}
     {% block media %}
     {{ media }}
     {% endblock media %}
+    <script type="text/javascript">
+    {% block extrascript %}
+    {% endblock extrascript %}
+    $(document).ready(function()
+    {
+        $.getScript('/jtest/media/js/jquery.jsites.js', function() {
+        {% block jquery %}
+        ui.update();
+        {% endblock jquery %}
+        });
+    });
+    </script>
 {% endblock head %}
 </head>
 
 <body>
     <div id="page">
         <div id="header">
-            <div id="cssmenu" class="jquerycssmenu">
+            <div id="cssmenu" class="jquerycssmenu breadcrumbs">
             <ul>
             {{ projectnav|safe }}
             {{ nav|safe }}

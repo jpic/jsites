@@ -29,3 +29,11 @@ def prop(value, arg):
         return mark_safe(html)
 
     return getattr(object, prop)
+
+@register.filter
+def verbose_name(value):
+    return value._meta.verbose_name
+
+@register.filter
+def verbose_name_plural(value):
+    return value._meta.verbose_name_plural
