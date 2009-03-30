@@ -32,6 +32,7 @@ function hide_add_object()
 {% endblock %}
 
 {% block jquery %}
+{{ block.super }}
 $('#show_add_object').click(function(event){
     event.preventDefault();
     show_add_object();
@@ -43,14 +44,20 @@ $('#hide_add_object').click(function(event){
 {% endblock %}
 {% block contents %}
 
+<h1>Recherche de {{ content_class|verbose_name_plural }}</h1>
+
 <div class="tab" id="search_results">
-    <h1>{{ content_class.verbose_name|capfirst }}</h1>
+    <h2>R&eacute;sultats</h2>
     
     <table class="objectinfo">
         <thead>
             <tr>
             {% for field in content_fields %}
+                {% if field.verbose_name %}
                 <th>{{ field.verbose_name|capfirst }}</th>
+                {% else %}
+                <th>{{ field|capfirst }}</th>
+                {% endif %}
             {% endfor %}
             </tr>
         </thead>
@@ -72,6 +79,7 @@ $('#hide_add_object').click(function(event){
 </div>
 
 <div class="tab" id="search_form">
+    <h2>Crit&egrave;res</h2>
     <form method="post" id="search_form" action="">
         <table>
             {{ search_engine.filter_form }}

@@ -85,3 +85,5 @@ INSTALLED_APPS = (
     'django_evolution',
     'testapp',
 )
+
+JSITES_MEDIA_PREFIX="/jtest/media"
