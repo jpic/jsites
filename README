@@ -8,7 +8,11 @@ Planning
 0.0alpha4 1H integration of jmenu for navigation
 0.0alpha5 4H integration of inlines, "just like in admin" (easy migration)
 0.0alpha6 1H client side field level constraints support in controllers
-0.0beta0  2H fix bugs while integrating to cp/mmm
-0.1alpha0 2H implement i18n, add english translation
-0.1alpha1 5H  server-side field level constraints support
+0.1alpha0 2H fix bugs while integrating to cp/mmm
+0.1alpha1 2H implement i18n, add english translation
+0.1alpha2 5H server-side field level constraints support
+0.1alpha3 3H subclass django.db.models.Model to reverse engineer controllers
+0.1alpha4 8H document interface driven development
+0.2alpha0 XX decouple DBAL
+0.2alpha1 XX implement with couchdb
 ========= == =================================================================
