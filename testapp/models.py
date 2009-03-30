@@ -12,3 +12,11 @@ class Whell(models.Model):
     side = models.CharField(max_length=1)
     def __unicode__(self):
         return self.side
+
+class Seat(models.Model):
+    car = models.ForeignKey('Car', related_name="seats")
+    side = models.CharField(max_length=1)
+    def __unicode__(self):
+        return self.side
+
+

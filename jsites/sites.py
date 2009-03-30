@@ -13,9 +13,9 @@ from django.conf.urls.defaults import patterns, url, include
 ERROR_MESSAGE = ugettext_lazy("Please enter a correct username and password. Note that both fields are case-sensitive.")
 LOGIN_FORM_KEY = 'this_is_the_login_form'
 
-from django.forms.models import modelform_factory
 from django import forms
-from django.forms.formsets import formset_factory
+from jadmin import menus
+from django.forms.models import modelform_factory, inlineformset_factory, modelformset_factory
 
 class AlreadyRegistered(Exception):
     pass
@@ -35,6 +35,11 @@ class LazyProperties(object):
         try:
             return super(LazyProperties, self).__getattribute__(name)
         except AttributeError:
+            # try to get it from class dict
+            print 'search for %s in %s' % (name, self.__class__.__name__)
+            print self.__class__.__dict__
+            if name in self.__class__.__dict__:
+                return self.__class__.__dict__[name]
             # try to find the getter
             getter = 'get_%s' % name
             setattr(self, name, getattr(self, getter)())
@@ -58,17 +63,15 @@ class ControllerBase(LazyProperties):
         }
     _media = Media
 
+    def __init__(self, inline=None):
+        self.inline = inline
+
     def get_media(self):
         js=['%s/js/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in self._media.js]
         css={}
         for type in self._media.css:
             css[type]=['%s/css/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in self._media.css[type]]
         return forms.Media(js=js, css=css)
-
-    def __init__(self, name):
-        self.name = name
-        self.urlname = name
-        super(ControllerBase, self).__init__()
 
     def prerun(self):
         """
@@ -94,7 +97,14 @@ class ControllerBase(LazyProperties):
         # Todo: figure if that could be cached somehow (at least for parent menu)
         self.reset('menu')
 
+    @classmethod
+    def instanciate(self, inline=False):
+        return self(inline)
+
+    @classmethod
     def run(self, request, *args, **kwargs):
+        self = self.instanciate()
+
         self.request = request
         self.args = args
         self.kwargs = kwargs
@@ -111,6 +121,7 @@ class ControllerBase(LazyProperties):
 
         return self.response
 
+    @classmethod
     def get_urls(self): 
         urlpatterns = patterns('')
         for action_method_name in self.actions:
@@ -135,15 +146,9 @@ class ControllerBase(LazyProperties):
             'controller': self,
             'media': self.media,
         }
-        if hasattr(self, 'get_menu'):
-            context['menu'] = self.menu
         if hasattr(self, 'parent'):
             context['parent'] = self.parent
-            if hasattr(self.parent, 'get_menu'):
-                if 'menu' in context:
-                    context['menu'] += self.parent.menu
-                else:
-                    context['menu'] = self.parent.menu
+            context['menu'] = self.parent.menu
         return context
 
     def add_to_context(self, name):
@@ -205,6 +210,14 @@ class ControllerBase(LazyProperties):
 
 class Controller(ControllerBase):
     actions = ('create', 'list', 'edit', 'details')
+
+    @classmethod
+    def get_menu(self):
+        menu = menus.Menu()
+        controller = menu.add(self.content_class._meta.verbose_name)
+        controller.add('list', '/jtest/sitename/' + self.name)
+        controller.add('create', '/jtest/sitename/' + self.name + '/create')
+        return menu
     
     def details(self):
         self.add_to_context('content_object')
@@ -282,25 +295,33 @@ class Controller(ControllerBase):
 class ControllerWrapper(Controller): 
     actions = ('index',)
 
+    def get_menu(self):
+        menu = menus.Menu()
+        for controller in self._registry.values():
+            menu += controller.get_menu()
+        return menu
+ 
     def __init__(self, *args, **kwargs):
         super(ControllerWrapper, self).__init__(*args, **kwargs)
         self._registry = {} # controller.name -> controller class
     
-    def register(self, controller):
-        if controller.name in self._registry.keys():
+    def register(self, controller_class):
+        if controller_class.name in self._registry.keys():
             raise AlreadyRegistered('A controller with name % is already registered on site %s' % (self.name, controller.name))
 
-        controller.parent = self
-        self._registry[controller.name] = controller
+        controller_class.parent = self
+        self._registry[controller_class.name] = controller_class
 
     def get_urls(self):
         urlpatterns = super(ControllerWrapper, self).get_urls()
 
         import jsites
         # Add in each model's views.
-        for controller in self._registry.values():
+        print self._registry
+        for controller_class in self._registry.values():
+            print controller_class.name, controller_class.get_urls()
             urlpatterns += patterns('',
-                url(r'^%s/%s/' % (self.urlname, controller.urlname), include(controller.urls)),
+                url(r'^%s/%s/' % (self.urlname, controller_class.urlname), include(controller_class.get_urls())),
                 (r'^media/(?P<path>.*)$', 'django.views.static.serve',
                     {'document_root': '%s/media' % jsites.__path__[0]}),
                 )
