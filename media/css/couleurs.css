@@ -1,0 +1,11 @@
+body {background:#016914 url(../img/bkg-h.png) top left repeat-x;}
+#header{background:#fff url(../img/bkg-header.png) top left repeat-x;}
+#page{background:#fff;}
+/*classes*/
+.important {background: #ffd; border: 1px #ddb solid;}
+/*Warning & important*/
+.warning {background: #fdd;color:#333; border: 2px #F30000 solid; margin:0 0 5px 0; }
+.warning h3{color:#F30000;}
+
+  
+  

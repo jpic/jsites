@@ -1,0 +1,4 @@
+body{background:#181818 url(../img/bg_page_vente.jpg) top left repeat-x;}
+#header h1 a{color:#1984e2;}
+ h2 {  background: #CC0000 url(../img/bg_h2.jpg) top left repeat-x;  color:#fff;  padding:0 6px 0 4px;height:20px;line-height:18px; border:1px solid #efefef; border-bottom:0;}
+#content h2 {  background: #000 url(../img/bg_h_large_vente.jpg) top repeat-x;  color:#fff;  padding:0 6px 0 4px;height:20px;line-height:18px;}

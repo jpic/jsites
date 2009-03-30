@@ -1,0 +1,16 @@
+#header {
+	height: 90px;
+}
+#header h1 {
+	font-size: 175%;
+	letter-spacing: 1px;
+	/*line-height: 65%;*/
+	position: absolute;
+	left: 190px;
+	bottom: 50px;
+}
+#logo {
+	position: absolute;
+	top: 15px;
+	left: 10px;
+}

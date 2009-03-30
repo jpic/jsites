@@ -1,0 +1,63 @@
+/*Général*/
+body {
+	text-align: center;
+}
+#page, #main, #header {
+	position: relative;
+	
+}
+#page {
+	text-align: left;
+	margin: 0  auto;
+	width: 990px;	
+}
+#main {
+	
+	padding:0 10px 10px 10px;
+	
+}
+.jquerycssmenu *{z-index:100}
+
+#content {
+	width: 800px;
+	float: right;
+	margin-left: 200px;
+}
+#subcol {
+	width: 200px;
+	position: absolute;
+	left: 0;
+	top: 0;
+}
+.wrapper {
+	background: none;
+	border: 0;
+	clear: both;
+	display: block;
+	padding: 5px;
+	float: none;
+	overflow: hidden;
+}
+.tab_contenu{
+margin:1%;
+}
+
+.bloc {
+	margin: 0 0 5px 0;
+}
+.float_box{
+	overflow: hidden;
+	padding-bottom:1px;
+}
+.cat div{
+	margin:5px;
+	padding:3px;  
+	text-align:center;
+}
+/*else*/
+#footer {
+	clear: both;
+	position: relative;
+	text-align:center;
+	
+}

@@ -1,0 +1,12 @@
+form{margin:0;padding:0;}
+input, textarea, select{width: 95%;border: 1px solid #bbb;background: #fff;}
+input , textarea{padding: 2px;font-size: 1.1em;}
+input:hover, textarea:hover, select:hover{border: 1px solid #ccc;}
+input:focus, textarea:focus, select:focus{border: 1px solid #666;background: #fff;}
+input[type=submit], input[type=button], input[type=reset] {background:white url(../img/nav-bg.gif) bottom repeat-x;border: 1px solid #181818;cursor: pointer;width:150px;}
+input[type=submit]:active, input[type=button]:active{background:white url(../img/nav-bg-reverse.gif) top repeat-x;}
+select option{padding:1px 2px;}
+selection option:focus, selection option:focus{background:#fbae16;}
+label {font-weight:normal;color:#333;}
+label:first-letter {text-transform: uppercase}
+#recherche tr th{text-align:right; width:150px;}
