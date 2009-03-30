@@ -2,19 +2,26 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
+{% block head %}
     <!-- Charset -->
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>{% block title %}Bienvenue!{% endblock%}</title>
+    {% block extra %}
     <style type="text/css">
     {% block extrastyle %}
-    {% endblock %}
+    {% endblock extrastyle %}
     </style>
+    {% block extrahead %}
+    {% endblock extrahead %}
     <script type="text/javascript">
     {% block extrascript %}
-    {% endblock %}
+    {% endblock extrascript %}
     </script>
-    {% block extrahead %}
-    {% endblock %}
+    {% endblock extra %}
+    {% block media %}
+    {{ media }}
+    {% endblock media %}
+{% endblock head %}
 </head>
 
 <body>
