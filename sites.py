@@ -26,14 +26,64 @@ def setopt(func, *args, **kwargs):
         setattr(func, kwarg, value)
     return func
 
-class ControllerBase(object): 
+class LazyProperties(object):
+    def __getattr__(self, name):
+        try:
+            return super(LazyProperties, self).__getattribute__(name)
+        except AttributeError:
+            # try to find the getter
+            getter = 'get_%s' % name
+            setattr(self, name, getattr(self, getter)())
+        return super(LazyProperties, self).__getattribute__(name)
+
+    def reset(self, *variables):
+        for name in variables:
+            print 'resetting', name
+            if name in self.__dict__:
+                delattr(self, name)
+
+class ControllerBase(LazyProperties):
     def __init__(self, name):
         self.name = name
         self.urlname = name
+        super(ControllerBase, self).__init__()
+
+    def prerun(self):
+        """
+        Default configuration assumes that:
+        - each request can carry its own content_id and object
+        This methods should be overloaded for controllers depending on one
+        arbitary content_object and id: don't do the reset() call
+        It should be overloaded and reset('content_class') should be called
+        for controllers intended to use with different content_class, eliged
+        per-request (in set_content_class()).
+
+        Reseting 'response' is critical though, run() returns self.response
+        to let the user create a self.reponse directly in the view, or
+        call render_to_response otherwise.
+        """
+        self.reset('content_id', 'content_object')
+        self.reset('response', 'context', 'action')
+
+    def run(self, request, *args, **kwargs):
+        self.request = request
+        self.args = args
+        self.kwargs = kwargs
+ 
+        # Allow cleaning variable cache
+        self.prerun()
+        
+        # Run the action
+        # It can override anything that was set by run()
+        response = self.action()
+
+        if response:
+            return response
+
+        return self.response
 
     def get_urls(self): 
         urlpatterns = patterns('')
-
         for action_method_name in self.actions:
             action = getattr(self, action_method_name)
             if hasattr(action, 'decorate'):
@@ -62,83 +112,27 @@ class ControllerBase(object):
 
         return context
 
-    def reset(self, *variables):
-        for variable in variables:
-            if hasattr(self, variable):
-                delattr(self, variable)
+    def add_to_context(self, name):
+        self.context[name] = getattr(self, name)
 
-    def prerun(self):
-        """
-        Default configuration assumes that:
-        - each request can carry its own content_id and object
-        This methods should be overloaded for controllers depending on one
-        arbitary content_object and id: don't do the reset() call
-        It should be overloaded and reset('content_class') should be called
-        for controllers intended to use with different content_class, eliged
-        per-request (in set_content_class()).
-        """
-        self.reset('content_id', 'content_object')
+    def get_content_id(self):
+        if 'content_id' in self.kwargs:
+            return self.kwargs['content_id']
+        return None
 
-    def run(self, request, *args, **kwargs):
-        self.prerun()
+    def get_content_object(self):
+        if self.content_id:
+            return self.content_class.objects.get(pk=self.content_id)
+        return self.content_class()
 
-        self.request = request
-        self.args = args
-        self.kwargs = kwargs
- 
-        # Set the global context
-        self.context = self.get_context()
-        # Set action method
-        self.action = getattr(self, kwargs['action'])
+    def get_content_fields(self):
+        return self.content_class._meta.get_all_field_names()
 
-        # Execute needed methods
-        if hasattr(self.action, 'need'):
-            for need in self.action.need:
-                if not hasattr(self, need):
-                    do = getattr(self, 'set_%s' % need)
-                    do()
-                self.context[need] = getattr(self, need)
+    def get_action_name(self):
+        return self.kwargs['action']
 
-        # Try to execute useful methods
-        if hasattr(self.action, 'use'):
-            for use in self.action.use:
-                if not hasattr(self, use):
-                    do = getattr(self, 'set_%s' % use, None)
-                    try:
-                        do()
-                        self.context[need] = getattr(self, need)
-                    except Exception:
-                        pass
-                else:
-                    self.context[need] = getattr(self, need)
-        
-        # Run the action
-        # It can override anything that was set by run()
-        response = self.action()
-
-        if response:
-            return response
-
-        print self.context
-
-        # Wrap around 
-        return self.get_response()
-
-    def set_content_id(self):
-        self.content_id = self.kwargs['content_id']
-        print "Set content id"
-
-    def set_content_object(self):
-        if not hasattr(self, 'content_class'):
-            self.set_content_class()
-        if not hasattr(self, 'content_id'):
-            self.set_content_id()
-        self.content_object = self.content_class.objects.get(pk=self.content_id)
-
-    def set_content_fields(self):
-        if not hasattr(self, 'content_class'):
-            self.set_content_class()
-        self.content_fields = self.content_class._meta.get_all_field_names()
+    def get_action(self):
+        return getattr(self, self.action_name)
 
     def get_template(self):
         if not hasattr(self, 'action'):
@@ -154,41 +148,26 @@ class ControllerBase(object):
         return fallback
 
     def get_response(self):
-        if not hasattr(self, 'template'):
-            self.template = self.get_template()
-        if not hasattr(self, 'context'):
-            self.context = self.get_context()
-
+        print "Response context", self.context
         return render_to_response(
             self.template,
             self.context,
             context_instance=RequestContext(self.request)
         )
- 
-    def urls(self):
-        return self.get_urls()
-    urls = property(urls)
 
 class Controller(ControllerBase):
     actions = ('create', 'edit', 'details', 'list')
     
-    def form(self):
-        if self.request.method == 'POST' \
-            and self.request.POST['submit'] == self.submit_name:
+    def details(self):
+        self.add_to_context('content_object')
+        self.add_to_context('content_fields')
+    details = setopt(details, urlname='details', urlregex=r'^(?P<content_id>.+)/$')
 
             if self.formobj.is_valid():
                 self.save_form()
-                if hasattr(self, 'save_revision'):
-                    self.save_revision()
-                self.inform_user_success()
-                return self.redirect()
-            else:
-                self.inform_user_failure()
-        
-        return {'form': self.formobj}
-    form = setopt(form, 'contribute_to_model', 'formobj')
-    create = setopt(form, urlname='create', urlregex=r'^create/(.*)$')
-    edit = setopt(form, urlname='edit', urlregex=r'^edit/(.*)$')
+        self.add_to_context('form_object')
+    edit = setopt(form, urlname='edit', urlregex=r'^edit/(?P<content_id>.+)/$')
+    create = setopt(form, urlname='create', urlregex=r'^create/$')
 
     def list(self):
         self.fields = self.get_fields()
@@ -199,11 +178,7 @@ class Controller(ControllerBase):
             'object_list': self.get_list_qset(),
         }
         return dict
-    list = setopt(list, urlname='list', urlregex=r'^$', need=('content_class'), use=('search_form'))
-
-    def details(self):
-        pass
-    details = setopt(details, urlname='details', urlregex=r'^(?P<content_id>.+)/$', need=('content_object', 'content_fields'))
+    list = setopt(list, urlname='list', urlregex=r'^$')
 
 class ControllerWrapper(Controller): 
     actions = ('index',)
