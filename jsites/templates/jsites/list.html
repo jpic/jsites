@@ -43,20 +43,21 @@ $('#hide_add_object').click(function(event){
 {% endblock %}
 {% block contents %}
 
-    <h1>{{ object.model.verbose_name|capfirst }}: {{ object }}</h1>
+<div class="tab" id="search_results">
+    <h1>{{ content_class.verbose_name|capfirst }}</h1>
     
     <table class="objectinfo">
         <thead>
             <tr>
-            {% for field in fields %}
-                <th>{{ field|capfirst }}</th>
+            {% for field in content_fields %}
+                <th>{{ field.verbose_name|capfirst }}</th>
             {% endfor %}
             </tr>
         </thead>
         <tbody>
-        {% for object in object_list %}
+        {% for object in search_engine.filter_queryset.all %}
             <tr>
-                {% for field in fields %}
+                {% for field in content_fields %}
                 <td>
                     {{ field|prop:object }}
                 </td>
@@ -68,10 +69,12 @@ $('#hide_add_object').click(function(event){
 
     <a id="hide_add_object" href="javascript:;" title="{% trans "Cancel add object" %}">{% trans "Cancel add object" %}</a>
     <a id="show_add_object" href="{{ form.action_url }}" title="{% trans "Add object" %}">{% trans "Add object" %}</a>
+</div>
 
-    <form method="post" id="add_object" action="{{ form.action_url }}">
+<div class="tab" id="search_form">
+    <form method="post" id="search_form" action="">
         <table>
-            {{ form }}
+            {{ search_engine.filter_form }}
             <tr>
                 <th>{% trans "Submit" %}</th>
                 <td>
@@ -82,5 +85,6 @@ $('#hide_add_object').click(function(event){
             </tr>
         </table>
     </form>
+</div>
 
 {% endblock %}
