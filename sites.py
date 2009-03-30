@@ -205,7 +205,7 @@ class Controller(ControllerBase):
     create = setopt(create, urlname='create', urlregex=r'^create/$')
 
     def prerun(self):
-        self.reset('form_object')
+        self.reset('form_object', 'search_engine')
         super(Controller, self).prerun()
 
     def save_form(self):
@@ -232,15 +232,27 @@ class Controller(ControllerBase):
             form = self.form_class(instance=self.content_object)
         return form 
 
+    def get_search_engine(self):
+        import jsearch
+        engine = jsearch.ModelSearch(
+            model_class = self.content_class,
+            queryset = self.queryset,
+            search_fields = self.list_columns,
+            form_class = self.form_class
+        )
+        return engine
+
+    def get_list_columns(self):
+        return self.form_fields
+
+    def get_queryset(self):
+        return self.content_class.objects.select_related()
+
     def list(self):
-        self.fields = self.get_fields()
-        if not hasattr(self, 'get_list_qset'):
-            raise Exception('get_list_qset not implemented in %s, cannot list.' % self.__class__.__name__)
-        qs = self.get_list_qset()
-        dict = {
-            'object_list': self.get_list_qset(),
-        }
-        return dict
+        self.search_engine.parse_request(self.request)
+        self.add_to_context('search_engine')
+        self.add_to_context('content_class')
+        self.add_to_context('content_fields')
     list = setopt(list, urlname='list', urlregex=r'^$')
 
 class ControllerWrapper(Controller): 
