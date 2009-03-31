@@ -474,6 +474,10 @@ class ModelFormController(ModelController):
             kwargs['widget'] = admin_widgets.AdminDateTimeWidget
         elif isinstance(f, fields.TimeField):
             kwargs['widget'] = admin_widgets.AdminTimeWidget
+
+        if self.action_name == 'list':
+            kwargs['required'] = False
+
         return f.formfield(**kwargs)
 
     def get_wysiwyg_field_names(self):
