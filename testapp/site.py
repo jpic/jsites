@@ -10,6 +10,14 @@ from django.forms.models import modelform_factory, inlineformset_factory, modelf
 class CarController(jsites.Controller):
     name = 'car'
     urlname = 'cars'
+    fieldsets = (
+        (None, {'fields': ('name','brand')}),
+        ('comment', {'fields': ('comment',)}),
+    )
+
+class BrandController(jsites.Controller):
+    name='brands'
+    urlname=name
 
 class WheelController(jsites.Controller):
     name = 'bar'
