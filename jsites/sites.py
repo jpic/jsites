@@ -23,6 +23,7 @@ import jsites
 import widgets
 from django.contrib.admin.util import flatten_fieldsets
 from django.contrib.admin import helpers
+from django.contrib.admin import widgets as admin_widgets
 # }}}
 # {{{ Exceptions
 class AlreadyRegistered(Exception):
@@ -280,6 +281,9 @@ class Controller(ControllerBase):
     details = setopt(details, urlname='details', urlregex=r'^(?P<content_id>.+)/$')
     # }}}
     # {{{ forms
+    def get_reuse_admin(self):
+        return True
+
     def forms(self):
         if self.request.method == 'POST':
             valid = False
@@ -300,15 +304,20 @@ class Controller(ControllerBase):
             'jsites/%s/forms.html' % self.urlname,
             'jsites/forms.html',
         ]
-        self.add_to_context('formset_objects')
-        self.add_to_context('form_object')
-        self.add_to_context('adminform')
-        print self.admin_formset_objects
-        self.add_to_context('admin_formset_objects')
 
-    def get_adminform(self):
-        adminform = helpers.AdminForm(self.form_object, self.fieldsets, self.prepopulated_fields)
-        return adminform
+        if not self.reuse_admin:
+            self.add_to_context('formset_objects')
+            self.add_to_context('form_object')
+        else:
+            self.add_to_context('adminform_object')
+            self.add_to_context('admin_formset_objects')
+            core = settings.ADMIN_MEDIA_PREFIX+'js/core.js'
+            i18n = settings.JSITES_MEDIA_PREFIX+'js/admin.jsi18n.js'
+            self.media.add_js([core, i18n])
+
+    def get_adminform_object(self):
+        adminform_object = helpers.AdminForm(self.form_object, self.fieldsets, self.prepopulated_fields)
+        return adminform_object
 
     def get_prepopulated_fields(self):
         return {}
@@ -374,6 +383,12 @@ class Controller(ControllerBase):
         kwargs = {}
         if f.name in self.wysiwyg_field_names:
             kwargs['widget'] = widgets.WysiwygWidget
+        elif isinstance(f, fields.DateField):
+            kwargs['widget'] = admin_widgets.AdminDateWidget
+        elif isinstance(f, fields.DateTimeField):
+            kwargs['widget'] = admin_widgets.AdminDateTimeWidget
+        elif isinstance(f, fields.TimeField):
+            kwargs['widget'] = admin_widgets.AdminTimeWidget
         return f.formfield(**kwargs)
 
     def get_wysiwyg_field_names(self):

@@ -13,6 +13,7 @@ class CarController(jsites.Controller):
     fieldsets = (
         (None, {'fields': ('name','brand')}),
         ('comment', {'fields': ('comment',)}),
+        ('dates ...', {'fields': ('thedate', 'thedatetime', 'thetime')}),
     )
     wysiwyg_field_names = ('comment',)
 

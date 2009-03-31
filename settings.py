@@ -86,4 +86,5 @@ INSTALLED_APPS = (
     'testapp',
 )
 
-JSITES_MEDIA_PREFIX="/jtest/media"
+# Plesae don't forget trailing slash or nothing will work
+JSITES_MEDIA_PREFIX="/jtest/media/"

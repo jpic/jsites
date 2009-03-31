@@ -6,6 +6,9 @@ class Car(models.Model):
     name = models.CharField(max_length=100)
     brand = models.ForeignKey('Brand', verbose_name=u'brand', null=True, blank=True)
     comment = models.TextField(verbose_name=u'comment', null=True, blank=True)
+    thedate = models.DateField(verbose_name=u'date', null=True, blank=True)
+    thedatetime = models.DateTimeField(verbose_name=u'datetime', null=True, blank=True)
+    thetime = models.TimeField(verbose_name=u'time', null=True, blank=True)
     def __unicode__(self):
         return self.name
 
