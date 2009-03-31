@@ -39,6 +39,13 @@ def setopt(func, *args, **kwargs): # {{{
     return func
 # }}}
 
+def media_converter(media):
+    js=['%s/js/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in media.js]
+    css={}
+    for type in media.css:
+        css[type]=['%s/css/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in media.css[type]]
+    return forms.Media(js=js, css=css)
+
 class LazyProperties(object): # {{{
     PROFILE=False
     def __getattr__(self, name):
@@ -130,11 +137,7 @@ class ControllerBase(LazyProperties):
         }
     _media = Media
     def get_media(self):
-        js=['%s/js/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in self._media.js]
-        css={}
-        for type in self._media.css:
-            css[type]=['%s/css/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in self._media.css[type]]
-        return forms.Media(js=js, css=css)
+        return media_converter(self._media)
     # }}}
     # {{{ context
     def get_context(self):
@@ -267,6 +270,11 @@ class Controller(ControllerBase):
             if valid:
                 self.save_form()
                 self.save_formsets()
+        
+        self.media = self.media + self.form_object.media
+        for formset_object in self.formset_objects:
+            self.media += formset_object.media
+
         self.template = [
             'jsites/%s/forms.html' % self.urlname,
             'jsites/forms.html',
