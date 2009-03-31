@@ -18,6 +18,7 @@
     <script type="text/javascript">
     {% block extrascript %}
     {% endblock extrascript %}
+    {% block jsbase %}
     $(document).ready(function()
     {
         $.getScript('/jtest/media/js/jquery.jsites.js', function() {
@@ -30,13 +31,14 @@
         };
         // firecss menu
         jquerycssmenu.buildmenu("breadcrumbs", arrowimages)
-
-        // fire jsites ui
+        {% endblock jquery %}
+        {% block ui %}
         ui.writeTabs($('#tabs'));
         ui.update();
-        {% endblock jquery %}
+        {% endblock ui %}
         });
     });
+    {% endblock jsbase %}
     </script>
 {% endblock head %}
 </head>

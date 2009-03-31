@@ -20,6 +20,8 @@ from django.forms.models import modelform_factory, inlineformset_factory, modelf
 from django.db.models import fields
 from django.db.models import related
 import jsites
+from django.contrib.admin.util import flatten_fieldsets
+from django.contrib.admin import helpers
 # }}}
 # {{{ Exceptions
 class AlreadyRegistered(Exception):
@@ -219,12 +221,12 @@ class ControllerBase(LazyProperties):
     def get_template(self):
         if not hasattr(self, 'action'):
             fallback = (
-                'jsites/%s/index.html' % self.name,
+                'jsites/%s/index.html' % self.urlname,
                 'jsites/index.html',
             )
         else:
             fallback = (
-                'jsites/%s/%s.html' % (self.name, self.action.__name__),
+                'jsites/%s/%s.html' % (self.urlname, self.action.__name__),
                 'jsites/%s.html' % self.action.__name__,
             )
         return fallback
@@ -265,10 +267,29 @@ class Controller(ControllerBase):
             if valid:
                 self.save_form()
                 self.save_formsets()
-        self.template = 'jsites/formset.html'
+        self.template = [
+            'jsites/%s/forms.html' % self.urlname,
+            'jsites/forms.html',
+        ]
         self.add_to_context('formset_objects')
         self.add_to_context('form_object')
-    
+        self.add_to_context('adminform')
+        print self.admin_formset_objects
+        self.add_to_context('admin_formset_objects')
+
+    def get_adminform(self):
+        adminform = helpers.AdminForm(self.form_object, self.fieldsets, self.prepopulated_fields)
+        return adminform
+
+    def get_prepopulated_fields(self):
+        return {}
+
+    def get_flat_fieldsets(self):
+        return flatten_fieldsets(self.fieldsets)
+
+    def get_fieldsets(self):
+        return [(None, {'fields': self.form_fields,})]
+
     def edit(self):
         return self.forms()
     edit = setopt(edit, urlname='edit', urlregex=r'^edit/(?P<content_id>.+)/$')
@@ -297,11 +318,17 @@ class Controller(ControllerBase):
     def get_form_fields(self):
         return self.local_fields
 
-    def get_inline_formset_fields(self):
+    def get_inline_fields(self):
         import copy
         fields = copy.copy(self.local_fields)
         fields.remove(self.inline_relation_field.name)
         return fields
+
+    def get_flat_inline_fieldsets(self):
+        return flatten_fieldsets(self.inline_fieldsets)
+
+    def get_inline_fieldsets(self):
+        return (None, {'fields': self.inline_fields})
 
     def get_local_fields(self):
         local_fields = []
@@ -332,7 +359,7 @@ class Controller(ControllerBase):
         for formset_object in self.formset_objects:
             formset_object.save()
 
-    def get_formset_objects(self):
+    def formset_objects_factory(self, admin):
         """
         Return a list of formset objects.
 
@@ -344,16 +371,51 @@ class Controller(ControllerBase):
         """
         objects = []
         for prop in self.virtual_fields:
-            # figure what model we want an inline from
-            related = self.content_class._meta.get_field_by_name(prop)[0].model
-            # rely on the parent to get the controller class we want
-            controller_class = self.parent.get_controller(related)
-            # fire it as an inline of this controller
-            controller = controller_class(self)
-            # get its object_formset
-            formset = controller.formset_object
-            objects.append(formset)
+            object = self.formset_object_factory(prop, admin)
+            objects.append(object)
         return objects
+
+    def formset_object_factory(self, prop, admin):
+        # figure what model we want an inline from
+        related = self.content_class._meta.get_field_by_name(prop)[0].model
+        # rely on the parent to get the controller class we want
+        controller_class = self.parent.get_controller(related)
+        # fire it as an inline of this controller
+        controller = controller_class(self)
+        # get the object we want
+        if admin:
+            object = controller.admin_formset_object
+        else:
+            object = controller.formset_object
+        return object
+
+    def get_admin_inline_options(self):
+        class InlineAdminFormSetOptionsMock(object):
+            def __init__(self, **kwargs):
+                for property, value in kwargs.items():
+                    setattr(self, property, value)
+        options = InlineAdminFormSetOptionsMock(
+            template=self.admin_inline_template,
+            prepopulated_fields=self.prepopulated_fields,
+            media=self.media,
+            verbose_name_plural=self.content_class._meta.verbose_name_plural,
+            verbose_name=self.content_class._meta.verbose_name
+            #show_url=self.details_url,
+        )
+        return options
+
+    def get_admin_inline_template(self):
+        return 'admin/edit_inline/tabular.html'
+
+    def get_admin_formset_object(self):
+        object = helpers.InlineAdminFormSet(self.admin_inline_options, self.formset_object, self.fieldsets)
+        return object
+
+    def get_admin_formset_objects(self):
+        return self.formset_objects_factory(True)
+
+    def get_formset_objects(self):
+        return self.formset_objects_factory(False)
 
     def get_formset_object(self):
         """
@@ -397,6 +459,8 @@ class Controller(ControllerBase):
     def get_formset_fields(self):
         return self.local_fields
 
+    def get_inline_formset_fields(self):
+        return self.local_fields
     # }}}
     # {{{ search/list view
     def get_search_engine(self):

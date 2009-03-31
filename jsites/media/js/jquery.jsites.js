@@ -276,7 +276,7 @@ jpicMapField.prototype.show = function() {
 };
 // }}}
 // {{{ fieldset/tab
-var jpicFieldset = function(name, error, id) {
+var jpicDjangoAdmin = function(name, error, id) {
     this.name = name;
     this.error = error;
     if (id == undefined)
@@ -289,23 +289,27 @@ var jpicFieldset = function(name, error, id) {
     }
     this.element = null;
 };
-jpicFieldset.factory = function(element) {
-    var name = element.find("h2").html();
+jpicDjangoAdmin.factory = function(element, name) {
+    if (name == undefined)
+    {
+        var name = element.find("h2").html();
+    }
 
     if (!name)
     {
+        //alert("could not create jpicDjangoAdmin object, missing name");
         return false;
     }
 
     var error = element.find('.errorlist').html();
 
-    var fieldset = new jpicFieldset(name, error);
+    var fieldset = new jpicDjangoAdmin(name, error);
     fieldset.element = element;
     element.addClass(fieldset.id);
 
     return fieldset;
 };
-jpicFieldset.prototype.getTab = function() {
+jpicDjangoAdmin.prototype.getTab = function() {
     if(this.tab === undefined)
     {
         this.tab = new jpicTab(this.name, this.error);
@@ -313,7 +317,7 @@ jpicFieldset.prototype.getTab = function() {
     return this.tab;
 };
 // TODO: refactor hide/show
-jpicFieldset.prototype.show = function() {
+jpicDjangoAdmin.prototype.show = function() {
     if (this.stacked)
     {
         thisname = this.name
@@ -338,7 +342,7 @@ jpicFieldset.prototype.show = function() {
         }
     }
 };
-jpicFieldset.prototype.hide = function() {
+jpicDjangoAdmin.prototype.hide = function() {
     if (this.stacked)
     {
         thisname = this.name
@@ -437,30 +441,30 @@ jpicTab.prototype.show = function() {
 var jpicTabManager = new function() {
     this.fieldsets = [];
 };
-jpicTabManager.addFieldset = function(fieldset) {
+jpicTabManager.addTabContent = function(fieldset) {
     if (fieldset)
     {
         this.fieldsets[fieldset.id] = fieldset;
-    }   
+    }
 };
-jpicTabManager.parseFieldsets = function() {
+jpicTabManager.parseDjangoAdmin = function() {
     var first = 0;
     
     $("fieldset.module").each(function() {
-        var fieldset = jpicFieldset.factory($(this));
-        jpicTabManager.addFieldset(fieldset);
+        var fieldset = jpicDjangoAdmin.factory($(this));
+        jpicTabManager.addTabContent(fieldset);
     });
 
     $("div.inline-group").each(function() {
-        var fieldset = jpicFieldset.factory($(this));
+        var fieldset = jpicDjangoAdmin.factory($(this));
         fieldset.stacked = true; // will use stacked inline hide/show functions
-        jpicTabManager.addFieldset(fieldset);
+        jpicTabManager.addTabContent(fieldset);
     });
 };
 jpicTabManager.parseDivTabs = function() {
     $("div.tab").each(function() {
         var divtab = jpicDivTab.factory($(this));
-        jpicTabManager.addFieldset(divtab);
+        jpicTabManager.addTabContent(divtab);
     });
 };
 jpicTabManager.writeTabs = function(element) {
@@ -624,17 +628,16 @@ jpicFieldValueEqualOrUnset.prototype.assert = function() {
 // {{{ ui
 ui = new function() {
     this.items = [];
-    jpicTabManager.parseFieldsets();
-    jpicTabManager.parseDivTabs();
-
+};
+ui.writeTabs = function(element) {
+    jpicTabManager.writeTabs(element);
+}
+ui.parseTabManager = function() {
     for(tabid in jpicTabManager.fieldsets)
     {
         fieldset = jpicTabManager.fieldsets[tabid];
         this.items[fieldset.name] = fieldset.getTab();
     }
-};
-ui.writeTabs = function(element) {
-    jpicTabManager.writeTabs(element);
 }
 /*
  * Moves field with sourceFieldName after destinationFieldName, on the same row.
