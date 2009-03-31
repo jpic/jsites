@@ -74,41 +74,112 @@ class LazyProperties(object): # {{{
             # pass out if its not something we want to touch
             if name[:1] == '_':
                 return super(LazyProperties, self).__getattribute__(name)
-            # don't let it recurse if something is not properly configured
-            if name.find('get_get_') == 0:
-                raise Exception("Recursion predicted in %s for attribute %s could not be found, please implement function %s" % (self.__class__, name, name[4:]))
-            # try to get it from class dict
+            
+            # its supposed to be a un-initialised variable
+            # try to assign it from the class dict
             if name in self.__class__.__dict__:
-                return self.__class__.__dict__[name]
-            # try to find the getter
-            getter = 'get_%s' % name
-            setattr(self, name, getattr(self, getter)())
+                # TODO test the following
+                # value = getattr(super(type, self.__class__), name)
+                value = self.__class__.__dict__[name]
+                setattr(self, name, value)
+                return value
+
+            # check if a missing getter caused the caugh AttributeError
+            if name.find('get_') == 0:
+                raise LazyGetterMissing(self, name)
+
+            # call the getter and cache its return value in a property
+            return self._set_and_get(name)
         return super(LazyProperties, self).__getattribute__(name)
+
+    def _set_and_get(self, name):
+        value = self._get(name)
+        setattr(self, name, value)
+        return value
+
+    def _get(self, name):
+        return getattr(self, self._getter(name))()
+
+    def _getter(self, name):
+        return 'get_' + name
+
+    def _get_or_set(self, name, value):
+        try:
+            return getattr(self, name)
+        except LazyGetterMissing:
+            setattr(self, name, value)
+        return getattr(self, name, value)
+
+    def _hasanyof(self, names):
+        for name in names:
+            if self._has(name):
+                return True
+        return False
+
+    def _hasvalue(self, name):
+        return name in self.__class__.__dict__
+
+    def _has(self, name):
+        if name in self.__class__.__dict__ \
+            or name in self.__dict__ \
+            or hasattr(self, self._getter(name)):
+            return True
+        return False
+
+class LazyGetterMissing(Exception):
+    def __init__(self, raiser, name):
+        msg = "Prop. %s missing from object %s of class %s (%s)" % (name, unicode(raiser), raiser.__class__.__name__, raiser.__class__ )
+        super(LazyGetterMissing, self).__init__(msg)
 # }}}
+class UnnamedControllerException(Exception):
+    def __init__(self, kwargs):
+        msg = "Need either name or urlname or content_class in either: class attributes, Controller constructor arguments or Controller instance"
+        super(UnnamedControllerException, self).__init__(msg)
+
 class ControllerBase(LazyProperties):
-    def __init__(self, inline=None):
+    def __init__(self, inline=None, parent=None, **kwargs):
         """
         If a controller should pass itself to controllers it invokes as
         inlines using the "inline" argument.
     
         There should be no need for an inline controller to modify the
         properties of its caller.
+
+        A ControllerNode instanciating a Controller should pass itself
+        as 'parent'.
         """
         self.inline = inline
+        self.parent = parent
 
         if self.inline:
             # reference to the "running" context
             self.request = self.inline.request
-            self.kwargs = self.inline.kwargs
-            self.args = self.inline.args
+        
+        self.kwargs = kwargs
+
+        for property, value in kwargs.items():
+            setattr(self, property, value)
+
+        if not self._hasanyof(['content_class', 'name', 'urlname']):
+            raise UnnamedControllerException(kwargs)
+
+        if self._has('content_class'):
+            self._get_or_set('name', self.content_class._meta.verbose_name)
+            self._get_or_set('urlname', self.content_class._meta.module_name)
+        elif self._has('name') and not self._has('urlname'):
+            self.urlname = self.name
+        elif self._has('urlname') and not self._has('name'):
+            self.name = self.urlname
+
     # {{{ static/bootstrap: get_urls, instanciate, run.
     @classmethod
-    def instanciate(self, inline=False):
-        return self(inline)
+    def instanciate(self, **kwargs):
+        return self(**kwargs)
 
     @classmethod
     def run(self, request, *args, **kwargs):
-        self = self.instanciate()
+        self = self.instanciate(**kwargs)
+
         self.request = request
         self.args = args
         self.kwargs = kwargs
@@ -122,7 +193,6 @@ class ControllerBase(LazyProperties):
 
         return self.response
 
-    @classmethod
     def get_urls(self): 
         urlpatterns = patterns('')
         for action_method_name in self.actions:
@@ -138,7 +208,8 @@ class ControllerBase(LazyProperties):
                     url(urlregex,
                         self.run,
                         name=urlname,
-                        kwargs={'action': action_method_name})
+                        kwargs=dict(action_method_name=action_method_name, **self.kwargs),
+                        )
                 )
         return urlpatterns
     # }}}
@@ -153,8 +224,9 @@ class ControllerBase(LazyProperties):
             'all': ('jquerycssmenu.css', 'style.css'),
         }
     _media = Media
+    def get_media_path(self):
+        return None
     def get_media(self):
-        print "dong", self.additionnal_js
         return media_converter(self._media, self.additionnal_js, self.additionnal_css)
     def get_additionnal_js(self):
         return ()
@@ -167,15 +239,54 @@ class ControllerBase(LazyProperties):
             'controller': self,
             'media': self.media,
         }
-        if hasattr(self, 'parent'):
-            context['parent'] = self.parent
+        if self.parent:
+            self.add_to_context('parent')
             context['menu'] = self.parent.menu
         return context
 
     def add_to_context(self, name):
         self.context[name] = getattr(self, name)
     # }}}
-    # {{{ content_{class,id,fields,object}
+    # {{{ action, action_name
+    def get_action_method_name(self):
+        if 'action_method_name' in self.kwargs:
+            return self.kwargs['action_method_name']
+        else:
+            return self.action_name
+
+    def get_action_name(self):
+        if 'action_name' in self.kwargs:
+            return self.kwargs['action_name']
+        else:
+            return self.action_method_name
+
+    def get_action(self):
+        return getattr(self, self.action_name)
+    # }}}
+    # {{{ template, response
+    def get_template(self):
+        if not hasattr(self, 'action'):
+            fallback = (
+                'jsites/%s/index.html' % self.urlname,
+                'jsites/index.html',
+            )
+        else:
+            fallback = (
+                'jsites/%s/%s.html' % (self.urlname, self.action.__name__),
+                'jsites/%s.html' % self.action.__name__,
+            )
+        return fallback
+
+    def get_response(self):
+        return render_to_response(
+            self.template,
+            self.context,
+            context_instance=RequestContext(self.request)
+        )
+    # }}}
+
+class ModelController(ControllerBase):
+# {{{ content_{class,id,fields,object}, fields_initial_values
     def get_content_class(self):
         if self.content_object:
             return self.content_object.__class__
@@ -196,14 +307,7 @@ class ControllerBase(LazyProperties):
         if self.fields_initial_values:
             return self.content_class(**self.fields_initial_values)
         return self.content_class()
-    # }}}
-    # {{{ action, action_name
-    def get_action_name(self):
-        return self.kwargs['action']
-
-    def get_action(self):
-        return getattr(self, self.action_name)
-    # }}}
+    
     def get_fields_initial_values(self):
         """
         Parse the request and finds key/values matching self.content_class
@@ -214,6 +318,7 @@ class ControllerBase(LazyProperties):
             if key in self.content_class._meta.get_all_field_names():
                 from_get[key.encode()] = value
         return from_get
+# }}}
     # {{{ virtual_fields, inline_relation_fields (model re routines)
     def get_virtual_fields(self):
         """
@@ -242,29 +347,9 @@ class ControllerBase(LazyProperties):
             if field.rel.to == self.inline.content_class:
                 return field
     # }}}
-    # {{{ template, response
-    def get_template(self):
-        if not hasattr(self, 'action'):
-            fallback = (
-                'jsites/%s/index.html' % self.urlname,
-                'jsites/index.html',
-            )
-        else:
-            fallback = (
-                'jsites/%s/%s.html' % (self.urlname, self.action.__name__),
-                'jsites/%s.html' % self.action.__name__,
-            )
-        return fallback
 
-    def get_response(self):
-        return render_to_response(
-            self.template,
-            self.context,
-            context_instance=RequestContext(self.request)
-        )
-    # }}}
-class Controller(ControllerBase):
-    actions = ('create', 'list', 'edit', 'details')    
+class ModelFormController(ModelController):
+    actions = ('create', 'list', 'edit', 'details')
     # {{{ menu
     @classmethod
     def get_menu(self):
@@ -535,44 +620,66 @@ class Controller(ControllerBase):
         self.add_to_context('content_class')
         self.add_to_context('content_fields')
     list = setopt(list, urlname='list', urlregex=r'^$')
-    # }}}
-class ControllerWrapper(Controller): 
+    # }}}i
+
+class ControllerNode(ControllerBase):
     actions = ('index',)
-    def __init__(self, *args, **kwargs):
-        super(ControllerWrapper, self).__init__(*args, **kwargs)
-        self._registry = {} # controller.name -> controller class
-    # {{{ menu
+    def __init__(self, **kwargs):
+        self._registry = {} # controller_class.content_class -> controller class
+        super(ControllerNode, self).__init__(**kwargs)
     def get_menu(self):
+        """
+        Navigation is also the business of this router.
+        """
         menu = menus.Menu()
         for controller in self._registry.values():
             menu += controller.get_menu()
         return menu
-    # }}}
     # {{{ registry routines
-    def register(self, model_class, controller_class):
-        if controller_class.name in self._registry.keys():
-            raise AlreadyRegistered('A controller with name % is already registered on site %s' % (self.name, controller.name))
+    def register_named_crud(self, model_class, **kwargs):
+        crud = ModelFormController
+        object = crud(content_class=model_class, parent=self, **kwargs)
+        self.register(object)
 
-        controller_class.parent = self
-        controller_class.content_class = model_class
-        self._registry[model_class] = controller_class
+    def register(self, controller):
+        for registered_controller in self._registry.values():
+            if controller.urlname == registered_controller.urlname:
+                raise AlreadyRegistered('A controller with urlname % is already registered in node %s' % (controller.name, self.name))
+
+        controller.parent = self
+        self._registry[controller.content_class] = controller
 
     def get_controller(self, model_class):
         return self._registry[model_class]
     # }}}
     def get_urls(self):
-        urlpatterns = super(ControllerWrapper, self).get_urls()
+        urlpatterns = super(ControllerNode, self).get_urls()
         # Add in each model's views.
-        for controller_class in self._registry.values():
-            urlpatterns += patterns('',
-                url(r'^%s/%s/' % (self.urlname, controller_class.urlname), include(controller_class.get_urls())),
-                (r'^media/(?P<path>.*)$', 'django.views.static.serve',
-                    {'document_root': '%s/media' % jsites.__path__[0]}),
-                )
+        for controller in self._registry.values():
+            prefix = r'^%s/%s/' % (self.urlname, controller.urlname)
+            route = url(prefix, include(controller.get_urls()))
+            # TODO test the code commented below
+            # route = url(prefix, include(controller_class))
+            route = (prefix, include(controller.get_urls()))
+            urlpatterns += patterns('', url(*route))
+            if settings.DEBUG and controller.media_path:
+                urlpatterns += self.get_static_url(controller.media_path)
+
+        if settings.DEBUG:
+            urlpatterns += self.get_static_url(jsites.__path__[0])
+            print "%s urls fetched, visit /%s" % (self.name, self.urlname)
         return urlpatterns
-    # {{{ site views
+
+    def get_static_url(self, path):
+        path = '%s/media' % path
+        urlpatterns = patterns('',
+            (r'^site_media/(?P<path>.*)$', 'django.views.static.serve',
+                {'document_root': path, 'show_indexes': True}),
+        )
+        return urlpatterns
+
     def index(self):
         if not settings.DEBUG:
-            raise Exception('Cannot list actions if not settings.DEBUG')
+            raise Exception('Cannot list controllers if not settings.DEBUG')
+        self.context['controllers'] = self._registry.values()
     index = setopt(index, urlregex=r'^$', urlname='index')
-    # }}}
