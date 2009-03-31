@@ -20,6 +20,7 @@ from django.forms.models import modelform_factory, inlineformset_factory, modelf
 from django.db.models import fields
 from django.db.models import related
 import jsites
+import widgets
 from django.contrib.admin.util import flatten_fieldsets
 from django.contrib.admin import helpers
 # }}}
@@ -350,7 +351,13 @@ class Controller(ControllerBase):
         """
         Default formfield for db field callback to use in our form generators.
         """
-        return f.formfield()
+        kwargs = {}
+        if f.name in self.wysiwyg_field_names:
+            kwargs['widget'] = widgets.WysiwygWidget
+        return f.formfield(**kwargs)
+
+    def get_wysiwyg_field_names(self):
+        return ('html','body')
 
     def get_form_object(self):
         """

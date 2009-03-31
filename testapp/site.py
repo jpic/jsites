@@ -14,6 +14,7 @@ class CarController(jsites.Controller):
         (None, {'fields': ('name','brand')}),
         ('comment', {'fields': ('comment',)}),
     )
+    wysiwyg_field_names = ('comment',)
 
 class BrandController(jsites.Controller):
     name='brands'
