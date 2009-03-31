@@ -40,11 +40,26 @@ def setopt(func, *args, **kwargs): # {{{
     return func
 # }}}
 
-def media_converter(media):
-    js=['%s/js/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in media.js]
+def media_converter(media, additionnal_js=(), additionnal_css={}):
+    js = []
+    for src in media.js + additionnal_js:
+        if src[0] == '/':
+            js.append(src)
+        else:
+            js.append('%sjs/%s' % (settings.JSITES_MEDIA_PREFIX, src))
+    
     css={}
     for type in media.css:
-        css[type]=['%s/css/%s' % (settings.JSITES_MEDIA_PREFIX, url) for url in media.css[type]]
+        css[type] = []
+        curcss = media.css[type]
+        if type in additionnal_css:
+            curcss+= additionnal_css[type]
+        for src in curcss:
+            if src[0] == '/':
+                css[type].append(src)
+            else:
+                css[type].append('%scss/%s' % (settings.JSITES_MEDIA_PREFIX, src))
+    
     return forms.Media(js=js, css=css)
 
 class LazyProperties(object): # {{{
@@ -138,7 +153,12 @@ class ControllerBase(LazyProperties):
         }
     _media = Media
     def get_media(self):
-        return media_converter(self._media)
+        print "dong", self.additionnal_js
+        return media_converter(self._media, self.additionnal_js, self.additionnal_css)
+    def get_additionnal_js(self):
+        return ()
+    def get_additionnal_css(self):
+        return {}
     # }}}
     # {{{ context
     def get_context(self):
