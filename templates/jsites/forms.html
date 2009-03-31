@@ -1,0 +1,46 @@
+{% extends 'jsites/base.html' %}
+{% load i18n %}
+
+{% block title %}{{ submit_name }}{% endblock %}
+
+{% block ui %}
+jpicTabManager.parseDjangoAdmin();
+jpicTabManager.parseDivTabs();
+ui.parseTabManager();
+ui.writeTabs($('#tabs'));
+ui.update();
+{% endblock ui %}
+
+{% block contents %}
+<form action="{{ form_object.action_url }}" method="post" id="object_form">
+{# popup hack #}
+{% if is_popup %}<input type="hidden" name="_popup" value="1" />{% endif %}
+
+{# base object form #}
+{% if form_object and not adminform %}
+<table>
+    {{ form_object }}
+</table>
+{% else %}
+    {% for fieldset in adminform %}
+        {% include "admin/includes/fieldset.html" %}
+    {% endfor %}
+{% endif %}
+
+{# formsets #}
+{% if formset_objects and not admin_formset_objects %}
+    {% for formset_object in formset_objects %}
+        {{ formset_object }}
+    {% endfor %}
+{% else %}
+    {% for inline_admin_formset in admin_formset_objects %}
+        {% include inline_admin_formset.opts.template %}
+    {% endfor %}
+{% endif %}
+
+{# submit #}
+<input type="submit" value="{{ form.submit_name }}" name="submit" />
+<input type="hidden" name="next" value="{% if next %}{{ next }}{% else %}{% if request.META.HTTP_REFERER %}{{ request.META.HTTP_REFERER }}{% else %}/dashboard{% endif %}{% endif %}" />
+
+</form>
+{% endblock %}
