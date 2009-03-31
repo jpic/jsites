@@ -660,7 +660,7 @@ class ControllerNode(ControllerBase):
         urlpatterns = super(ControllerNode, self).get_urls()
         # Add in each model's views.
         for controller in self._registry.values():
-            prefix = r'^%s/%s/' % (self.urlname, controller.urlname)
+            prefix = r'^%s/' % controller.urlname
             route = url(prefix, include(controller.get_urls()))
             # TODO test the code commented below
             # route = url(prefix, include(controller_class))
@@ -677,7 +677,7 @@ class ControllerNode(ControllerBase):
     def get_static_url(self, path):
         path = '%s/media' % path
         urlpatterns = patterns('',
-            (r'^site_media/(?P<path>.*)$', 'django.views.static.serve',
+            (r'^media/(?P<path>.*)$', 'django.views.static.serve',
                 {'document_root': path, 'show_indexes': True}),
         )
         return urlpatterns
