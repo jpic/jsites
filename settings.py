@@ -87,4 +87,4 @@ INSTALLED_APPS = (
 )
 
 # Plesae don't forget trailing slash or nothing will work
-JSITES_MEDIA_PREFIX="/jtest/media/"
+JSITES_MEDIA_PREFIX="/minefield/media/"
