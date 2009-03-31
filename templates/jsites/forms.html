@@ -4,11 +4,10 @@
 {% block title %}{{ submit_name }}{% endblock %}
 
 {% block ui %}
+{% if adminform_object or admin_formset_objects %}
 jpicTabManager.parseDjangoAdmin();
-jpicTabManager.parseDivTabs();
-ui.parseTabManager();
-ui.writeTabs($('#tabs'));
-ui.update();
+{% endif %}
+{{ block.super }}
 {% endblock ui %}
 
 {% block contents %}
