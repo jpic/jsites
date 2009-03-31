@@ -83,7 +83,7 @@ INSTALLED_APPS = (
     'jsites',
     'django_extensions',
     'django_evolution',
-    'testapp',
+    'itbm',
 )
 
 # Plesae don't forget trailing slash or nothing will work

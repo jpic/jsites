@@ -4,11 +4,11 @@ from django.conf.urls.defaults import *
 # from django.contrib import admin
 # admin.autodiscover()
 
-from testapp import site
+from itbm.sites import site as itbm
+
 urlpatterns = patterns('',
     # Example:
-    (r'^jtest/', include(site.get_urls())),
-
+    (r'^%s/' % itbm.urlname, include(itbm.get_urls()))
     # Uncomment the admin/doc line below and add 'django.contrib.admindocs' 
     # to INSTALLED_APPS to enable admin documentation:
     # (r'^admin/doc/', include('django.contrib.admindocs.urls')),
