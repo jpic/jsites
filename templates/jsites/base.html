@@ -21,18 +21,20 @@
     {% block jsbase %}
     $(document).ready(function()
     {
-        $.getScript('/jtest/media/js/jquery.jsites.js', function() {
+        $.getScript('/minefield/media/js/jquery.jsites.js', function() {
         {% block jquery %}
         
         // setup css menu
         var arrowimages={
-            down:[ 'downarrowclass',  '/jtest/media/img/arrow-down.gif', 25],
-            right:['rightarrowclass', '/jtest/media/img/arrow-right.gif'],
+            down:[ 'downarrowclass',  '/minefield/media/img/arrow-down.gif', 25],
+            right:['rightarrowclass', '/minefield/media/img/arrow-right.gif'],
         };
         // firecss menu
         jquerycssmenu.buildmenu("breadcrumbs", arrowimages)
         {% endblock jquery %}
         {% block ui %}
+        jpicTabManager.parseDivTabs();
+        ui.parseTabManager();
         ui.writeTabs($('#tabs'));
         ui.update();
         {% endblock ui %}
