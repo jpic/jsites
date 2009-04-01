@@ -629,43 +629,76 @@ class ModelFormController(ModelController):
 class ControllerNode(ControllerBase):
     actions = ('index',)
     def __init__(self, **kwargs):
-        self._registry = {} # controller_class.content_class -> controller class
+        self._registry = {} # controller.name -> controller instance
+        self._content_class_registry = {} # content_class -> controller instance
         super(ControllerNode, self).__init__(**kwargs)
     def get_menu(self):
-        """
-        Navigation is also the business of this router.
-        """
         menu = menus.Menu()
         for controller in self._registry.values():
             menu += controller.get_menu()
         return menu
-    # {{{ registry routines
-    def register_named_crud(self, model_class, **kwargs):
+
+    @classmethod
+    def factory(self, app_name):
+        node = ControllerNode(name=app_name)
+        node.register_app(app_name)
+        return node
+
+    def register_app(self, app_name, **kwargs):
+        """
+        Ugly shortcut to get started visiting your app.
+        """
+        from django.db.models import get_app, get_models
+        app = get_app(app_name)
+        for content_class in get_models(app):
+            self.register_named_crud(content_class)
+
+    def register_named_crud(self, content_class, **kwargs):
+        """
+        Ugly shortcut to get started visiting your actions.
+        """
         crud = ModelFormController
-        object = crud(content_class=model_class, parent=self, **kwargs)
+        object = crud(content_class=content_class, parent=self, **kwargs)
         self.register(object)
 
     def register(self, controller):
+        """
+        Registers a controller instance.
+
+        Note that the controller will be re-instanciated in run(), by instanciate(),
+        the only two class methods.
+        get_urls() is charged of passing the arguments with which it was instanciated
+        for later re-instanciation.
+        """
+        if isinstance(controller, type):
+            controller = controller()
+
         for registered_controller in self._registry.values():
             if controller.urlname == registered_controller.urlname:
                 raise AlreadyRegistered('A controller with urlname % is already registered in node %s' % (controller.name, self.name))
 
         controller.parent = self
-        self._registry[controller.content_class] = controller
+        self._registry[controller.urlname] = controller
+        self._content_class_registry[controller.content_class] = controller
 
-    def get_controller(self, model_class):
-        return self._registry[model_class]
-    # }}}
+    def get_controllers_for_content_class(self, content_class):
+        """
+        The trick allowing to use several controllers per model: use two registries.
+        """
+        if not content_class in self._content_class_registry:
+            raise Exception('No controllers registered for content_class' % content_class)
+
+        return self._content_class_registry[content_class]
+
     def get_urls(self):
+        """
+        Takes care of prefixing inclusion of sub-controllers urls with controller.urlname.
+        """
         urlpatterns = super(ControllerNode, self).get_urls()
         # Add in each model's views.
         for controller in self._registry.values():
             prefix = r'^%s/' % controller.urlname
-            route = url(prefix, include(controller.get_urls()))
-            # TODO test the code commented below
-            # route = url(prefix, include(controller_class))
-            route = (prefix, include(controller.get_urls()))
-            urlpatterns += patterns('', url(*route))
+            urlpatterns += patterns('', url(prefix, include(controller.urls)))
             if settings.DEBUG and controller.media_path:
                 urlpatterns += self.get_static_url(controller.media_path)
 
@@ -675,6 +708,9 @@ class ControllerNode(ControllerBase):
         return urlpatterns
 
     def get_static_url(self, path):
+        """
+        Should be improved: allowing each application to have its own media repository.
+        """
         path = '%s/media' % path
         urlpatterns = patterns('',
             (r'^media/(?P<path>.*)$', 'django.views.static.serve',
@@ -683,6 +719,10 @@ class ControllerNode(ControllerBase):
         return urlpatterns
 
     def index(self):
+        """
+        In debug mode, we want a list of controllers and actions that are registered.
+        Should be improved: with links to actions.
+        """
         if not settings.DEBUG:
             raise Exception('Cannot list controllers if not settings.DEBUG')
         self.context['controllers'] = self._registry.values()

@@ -1,0 +1,12 @@
+Shortest way to install jsites is a four-liner in urls.py::
+
+import jsites
+urlpatterns = patterns('',
+    (r'^%s/', include(jsites.ControllerNode.factory('itbm').urls)),
+)
+
+Nothing magic, just a couple of methods on the top of the classic
+design of django admin and databrowse apps.
+
+Anyway, after running syncdb, check the runserver stdout, it should
+tell which url to open to get started.
