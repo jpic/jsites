@@ -1,6 +1,6 @@
 #PROFILE=('pri', 'loop', 'method')
 PROFILE=()
-TEST=True
+TEST=False
 PROFILE_INDENT='    '
 
 class PropertyInitialiserMissing(Exception):
