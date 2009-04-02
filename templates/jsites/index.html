@@ -1,9 +1,30 @@
-<h2>Actions</h2>
+{% extends 'jsites/base.html' %}
 
+{% block contents %}
+    {% if controllers %}
+<h2>Controllers</h2>
+<table>
+        {% for controller in controllers %}
+    <tr>
+        <td>{{ controller.name }}</td>
+        <td>{{ controller.parent.urlname }}/{{ controller.urlname }}</td>
+        <td>
+            <ul>
+            {% for action in controller.actions %}
+                <li><a href="{{ controller.parent.urlname }}/{{ controller.urlname }}/{{ action }}">{{ action }}</a></li>
+            {% endfor %}
+            </ul>
+        </td>
+    </tr>
+        {% endfor %}
+</table>
+    {% else %}
+<h2>Actions</h2>
 <ul>
-{% for action in controller.actions %}
+        {% for action in controller.actions %}
     <li><a>{{ action }}</a></li>
-{% endfor %}
+        {% endfor %}
 </ul>
+    {% endif %}
+{% endblock %}
 {% debug %}
-bar
