@@ -4,7 +4,25 @@ from copy import deepcopy
 from django.utils.safestring import mark_safe
 
 @register.filter
+def class_prop(value, arg):
+    object = arg.__class__
+    prop = value
+    return getattr(object, prop)
+
+@register.filter
+def keyvalue(value, arg):
+    object = arg
+    key = value
+    return object[key]
+
+@register.filter
 def prop(value, arg):
+    object = arg
+    prop = value
+    return getattr(object, prop)
+
+@register.filter
+def model_prop(value, arg):
     object = arg
     prop = value
 
