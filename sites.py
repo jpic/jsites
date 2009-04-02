@@ -23,6 +23,7 @@ import widgets
 from django.contrib.admin import helpers
 from django.contrib.admin import widgets as admin_widgets
 from ppv import jobject
+from structure import items
 # }}}
 # {{{ Exceptions
 class AlreadyRegistered(Exception):
@@ -569,6 +570,27 @@ class ModelFormController(ModelController):
         self.add_to_context('content_fields')
     list = setopt(list, urlname='list', urlregex=r'^$')
     # }}}i
+
+class StructureController(ModelFormController):
+    def get_structure_object(self):
+        return self.structure_class()
+    def get_structure_class(self):
+        return self.structure_object.__class__
+    def get_html_structure_renderer_class(self):
+        from structure import html
+        return html.HtmlRenderer
+    def get_html_structure_renderer_object(self):
+        return self.html_structure_renderer_class(self.structure_object, self.form_object)
+    def forms(self):
+        super(StructureController, self).forms()
+        self.add_to_context('structure_object')
+        self.add_to_context('html_structure_renderer_object')
+        self.template = [
+            'jsites/%s/structured_forms.html' % self.urlname,
+            'jsites/structured_forms.html',
+        ]
+    def get_content_fields(self):
+        return self.structure_object.get_matching_leaf_names(editable=True, persistent=True)
 
 class ControllerNode(ControllerBase):
     actions = ('index',)
