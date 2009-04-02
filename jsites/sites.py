@@ -21,9 +21,9 @@ from django.db.models import fields
 from django.db.models import related
 import jsites
 import widgets
-from django.contrib.admin.util import flatten_fieldsets
 from django.contrib.admin import helpers
 from django.contrib.admin import widgets as admin_widgets
+from pgv import jobject
 # }}}
 # {{{ Exceptions
 class AlreadyRegistered(Exception):
@@ -63,80 +63,12 @@ def media_converter(media, additionnal_js=(), additionnal_css={}):
     
     return forms.Media(js=js, css=css)
 
-class LazyProperties(object): # {{{
-    PROFILE=False
-    def __getattr__(self, name):
-        try:
-            return super(LazyProperties, self).__getattribute__(name)
-        except AttributeError:
-            if LazyProperties.PROFILE:
-                print "AttributeError caugh in %s for %s" % (self.__class__, name)
-            # pass out if its not something we want to touch
-            if name[:1] == '_':
-                return super(LazyProperties, self).__getattribute__(name)
-            
-            # its supposed to be a un-initialised variable
-            # try to assign it from the class dict
-            if name in self.__class__.__dict__:
-                # TODO test the following
-                # value = getattr(super(type, self.__class__), name)
-                value = self.__class__.__dict__[name]
-                setattr(self, name, value)
-                return value
-
-            # check if a missing getter caused the caugh AttributeError
-            if name.find('get_') == 0:
-                raise LazyGetterMissing(self, name)
-
-            # call the getter and cache its return value in a property
-            return self._set_and_get(name)
-        return super(LazyProperties, self).__getattribute__(name)
-
-    def _set_and_get(self, name):
-        value = self._get(name)
-        setattr(self, name, value)
-        return value
-
-    def _get(self, name):
-        return getattr(self, self._getter(name))()
-
-    def _getter(self, name):
-        return 'get_' + name
-
-    def _get_or_set(self, name, value):
-        try:
-            return getattr(self, name)
-        except LazyGetterMissing:
-            setattr(self, name, value)
-        return getattr(self, name, value)
-
-    def _hasanyof(self, names):
-        for name in names:
-            if self._has(name):
-                return True
-        return False
-
-    def _hasvalue(self, name):
-        return name in self.__class__.__dict__
-
-    def _has(self, name):
-        if name in self.__class__.__dict__ \
-            or name in self.__dict__ \
-            or hasattr(self, self._getter(name)):
-            return True
-        return False
-
-class LazyGetterMissing(Exception):
-    def __init__(self, raiser, name):
-        msg = "Prop. %s missing from object %s of class %s (%s)" % (name, unicode(raiser), raiser.__class__.__name__, raiser.__class__ )
-        super(LazyGetterMissing, self).__init__(msg)
-# }}}
 class UnnamedControllerException(Exception):
     def __init__(self, kwargs):
         msg = "Need either name or urlname or content_class in either: class attributes, Controller constructor arguments or Controller instance"
         super(UnnamedControllerException, self).__init__(msg)
 
-class ControllerBase(LazyProperties):
+class ControllerBase(jobject):
     def __init__(self, inline=None, parent=None, **kwargs):
         """
         If a controller should pass itself to controllers it invokes as
@@ -154,12 +86,14 @@ class ControllerBase(LazyProperties):
         if self.inline:
             # reference to the "running" context
             self.request = self.inline.request
-        
+
+        # backup kwargs for get_url:
         self.kwargs = kwargs
 
-        for property, value in kwargs.items():
-            setattr(self, property, value)
+        # ask parent to set each kwarg as a property
+        super(ControllerBase, self).__init__(**kwargs)
 
+        # validate controller
         if not self._hasanyof(['content_class', 'name', 'urlname']):
             raise UnnamedControllerException(kwargs)
 
