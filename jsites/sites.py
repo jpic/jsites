@@ -354,6 +354,7 @@ class ModelFormController(ModelController):
         return {}
 
     def get_flat_fieldsets(self):
+        """Returns a list of field names from an admin fieldsets structure."""
         return flatten_fieldsets(self.fieldsets)
 
     def get_fieldsets(self):
@@ -638,6 +639,8 @@ class ControllerNode(ControllerBase):
         for later re-instanciation.
         """
         if isinstance(controller, type):
+            if settings.DEBUG:
+                print "Notice: register() converted controller class to instance"
             controller = controller()
 
         for registered_controller in self._registry.values():
