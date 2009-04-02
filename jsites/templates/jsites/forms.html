@@ -15,18 +15,19 @@ jpicTabManager.parseDjangoAdmin();
 {# popup hack #}
 {% if is_popup %}<input type="hidden" name="_popup" value="1" />{% endif %}
 
-{# base object form #}
+{% block object_form %}
 {% if form_object and not adminform_object %}
 <table>
     {{ form_object }}
 </table>
 {% else %}
     {% for fieldset in adminform_object %}
-        {% include "admin/includes/fieldset.html" %}
+        {% include "jsites/includes/fieldset.html" %}
     {% endfor %}
 {% endif %}
+{% endblock object_form %}
 
-{# formsets #}
+{% block object_formsets %}
 {% if formset_objects and not admin_formset_objects %}
     {% for formset_object in formset_objects %}
         {{ formset_object }}
@@ -36,6 +37,7 @@ jpicTabManager.parseDjangoAdmin();
         {% include inline_admin_formset.opts.template %}
     {% endfor %}
 {% endif %}
+{% endblock object_formsets %}
 
 {# submit #}
 <input type="submit" value="{{ form.submit_name }}" name="submit" />
