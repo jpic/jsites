@@ -1,5 +1,5 @@
-PROFILE=('pri', 'loop', 'method')
-#PROFILE=()
+#PROFILE=('pri', 'loop', 'method')
+PROFILE=()
 TEST=True
 PROFILE_INDENT='    '
 
