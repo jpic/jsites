@@ -9,7 +9,7 @@
     <tr>
         <th>{{ field|capfirst }}</th>
         <td>
-            {{ field|prop:content_object }}
+            {{ field|model_prop:content_object }}
         </td>
     </tr>
     {% endfor %}
