@@ -18,6 +18,7 @@ from jadmin import menus
 from django.forms.models import modelform_factory, inlineformset_factory, modelformset_factory
 from django.db.models import fields
 from django.db.models import related
+from django.contrib.admin.util import flatten_fieldsets
 import jsites
 import widgets
 from django.contrib.admin import helpers
