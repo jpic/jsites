@@ -1,4 +1,4 @@
-{% load operation %}
+{% load operations %}
 
 <fieldset class="module aligned {{ fieldset.classes }}">
   {% if fieldset.name %}<h2>{{ fieldset.name }}</h2>{% endif %}
@@ -7,8 +7,8 @@
       <div class="form-row{% if line.errors %} errors{% endif %} {% for field in line %}{{ field.field.name }} {% endfor %} ">
       {{ line.errors }}
       {% for field in line %}
-      {% with num_fields as line.fields|length %}
-      <div{% if not line.fields|length_is:"1" %} class="field-box grid_{{ "100"|divide_by:num_fields }}"{% endif %}>
+      {% with line.fields|length as num_fields %}
+      <div{% if not line.fields|length_is:"1" %} class="field-box grid_{{ "100"|divideby:num_fields }}"{% endif %}>
       {% endwith %}
           {% if field.is_checkbox %}
               {{ field.field }}{{ field.label_tag }}
