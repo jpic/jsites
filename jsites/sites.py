@@ -9,7 +9,9 @@ from django.utils.translation import ugettext_lazy, ugettext as _
 from django.views.decorators.cache import never_cache
 from django.conf import settings
 from django.template import RequestContext
-from django.conf.urls.defaults import patterns, url, include
+from django.conf.urls import defaults as urls
+from django.core import urlresolvers
+from django.core.urlresolvers import reverse
 ERROR_MESSAGE = ugettext_lazy("Please enter a correct username and password. Note that both fields are case-sensitive.")
 LOGIN_FORM_KEY = 'this_is_the_login_form'
 
@@ -141,7 +143,7 @@ class ControllerBase(jobject):
         return self.response
 
     def get_urls(self): 
-        urlpatterns = patterns('')
+        urlpatterns = urls.patterns('')
         for action_method_name in self.actions:
             action = getattr(self, action_method_name)
             if hasattr(action, 'decorate'):
@@ -154,9 +156,10 @@ class ControllerBase(jobject):
                 name = ''
                 if self.parent:
                     name += self.parent.urlname + '_'
+                name += self.urlname + '_'
                 name += urlname
-                urlpatterns += patterns('', 
-                    url(urlregex,
+                urlpatterns += urls.patterns('', 
+                    urls.url(urlregex,
                         self.__class__.run,
                         name=name,
                         kwargs=dict(action_method_name=action_method_name, **self.kwargs),
@@ -330,8 +333,20 @@ class ModelFormController(ModelController):
     def get_menu(self):
         menu = menus.Menu()
         controller = menu.add(self.content_class._meta.verbose_name)
-        controller.add('list', '/jtest/sitename/' + self.name)
-        controller.add('create', '/jtest/sitename/' + self.name + '/create')
+
+        if self.parent:
+            prefix = "%s_%s_" % (self.parent.urlname, self.urlname)
+        else:
+            prefix = "%s_" % self.urlname
+
+        if self.is_running:
+            if self.action_name == 'edit':
+                menu.add('details', reverse(prefix+'details', args=(self.content_id)))
+            if self.action_name == 'details':
+                menu.add('edit', reverse(prefix+'edit', args=(self.content_id)))
+        
+        controller.add('list', reverse(prefix+'list'))
+        controller.add('create', reverse(prefix+'create'))
         return menu
     # }}}
     # {{{ details
@@ -398,7 +413,6 @@ class ModelFormController(ModelController):
         return flatten_fieldsets(self.fieldsets)
 
     def get_fieldsets(self):
-        print "FIELDSET UNDECLARED", self.__class__
         return [(self.content_class._meta.verbose_name, {'fields': self.form_fields,})]
 
     def edit(self):
@@ -695,7 +709,7 @@ class ControllerNode(ControllerBase):
             if settings.DEBUG:
                 print """Notice: register() converted controller class to instance
     Apparently, you're new to jsites. The differences between jsites and admin/databrowse registries are:
-    - instances are registered, its the job of the controller instance get_urls() to pass static call to run() to url(),
+    - instances are registered, its the job of the controller instance get_urls() to pass static call to run() to urls.url(),
     - you can work with instances in your sites definition,
     - kwargs passed to the controller instance constructor are backed up in urls(),
     - add any "lazy" programmable property name to get_backup_kwargs() to add variables to backup (and not re-program at each run).
@@ -734,7 +748,7 @@ class ControllerNode(ControllerBase):
         # Add in each model's views.
         for controller in self._registry.values():
             prefix = r'^%s/' % controller.urlname
-            urlpatterns += patterns('', url(prefix, include(controller.urls), kwargs={'parent': self}))
+            urlpatterns += urls.patterns('', urls.url(prefix, urls.include(controller.urls), kwargs={'parent': self}))
             if settings.DEBUG and controller.media_path:
                 urlpatterns += self.get_static_url(controller.media_path)
 
@@ -748,7 +762,7 @@ class ControllerNode(ControllerBase):
         Should be improved: allowing each application to have its own media repository.
         """
         path = '%s/media' % path
-        urlpatterns = patterns('',
+        urlpatterns = urls.patterns('',
             (r'^media/(?P<path>.*)$', 'django.views.static.serve',
                 {'document_root': path, 'show_indexes': True}),
         )
