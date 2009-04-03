@@ -112,6 +112,10 @@ class ControllerBase(jobject):
         elif self._has('urlname') and not self._has('name'):
             self.name = self.urlname
 
+        # back up any variable to kwargs
+        for kwarg in self.backup_kwargs:
+            self.kwargs[kwarg] = getattr(self, kwarg)
+
     # {{{ static/bootstrap: get_urls, instanciate, run.
     @classmethod
     def instanciate(self, **kwargs):
@@ -145,14 +149,21 @@ class ControllerBase(jobject):
             if hasattr(action, 'urlname') and hasattr(action, 'urlregex'):
                 urlname = action.urlname
                 urlregex = action.urlregex
+                name = ''
+                if self.parent:
+                    name += self.parent.urlname + '_'
+                name += urlname
                 urlpatterns += patterns('', 
                     url(urlregex,
-                        self.run,
-                        name=urlname,
+                        self.__class__.run,
+                        name=name,
                         kwargs=dict(action_method_name=action_method_name, **self.kwargs),
                         )
                 )
         return urlpatterns
+
+    def get_backup_kwargs(self):
+        return []
 
     def root_url(self):
         if self.parent:
@@ -680,7 +691,15 @@ class ControllerNode(ControllerBase):
         """
         if isinstance(controller, type):
             if settings.DEBUG:
-                print "Notice: register() converted controller class to instance"
+                print """Notice: register() converted controller class to instance
+    Apparently, you're new to jsites. The differences between jsites and admin/databrowse registries are:
+    - instances are registered, its the job of the controller instance get_urls() to pass static call to run() to url(),
+    - you can work with instances in your sites definition,
+    - kwargs passed to the controller instance constructor are backed up in urls(),
+    - add any "lazy" programmable property name to get_backup_kwargs() to add variables to backup (and not re-program at each run).
+    You will notice that several controllers per model or several instances of the same controller class is planned to be supported,
+    but it won't let you fine-tune formsets, because _content_class_registry only does register one controller per content_class, ATM.
+"""
             controller = controller()
 
         for registered_controller in self._registry.values():
