@@ -42,6 +42,10 @@ def setopt(func, *args, **kwargs): # {{{
     return func
 # }}}
 
+# when this variable is enabled:
+# things like loops that should happen in a template happen in python first
+TEST=False
+
 def media_converter(media, additionnal_js=(), additionnal_css={}):
     js = []
     for src in media.js + additionnal_js:
@@ -70,7 +74,7 @@ class UnnamedControllerException(Exception):
         super(UnnamedControllerException, self).__init__(msg)
 
 class ControllerBase(jobject):
-    def __init__(self, inline=None, parent=None, **kwargs):
+    def __init__(self, **kwargs):
         """
         If a controller should pass itself to controllers it invokes as
         inlines using the "inline" argument.
@@ -81,8 +85,10 @@ class ControllerBase(jobject):
         A ControllerNode instanciating a Controller should pass itself
         as 'parent'.
         """
-        self.inline = inline
-        self.parent = parent
+        if 'inline' not in kwargs:
+            self.inline = None
+        if 'parent' not in kwargs:
+            self.parent = None
 
         if self.inline:
             # reference to the "running" context
@@ -147,6 +153,12 @@ class ControllerBase(jobject):
                         )
                 )
         return urlpatterns
+
+    def root_url(self):
+        if self.parent:
+            return "/%s/%s" % (self.parent.urlname, self.urlname)
+        else:
+            return "/%s" % self.urlname
     # }}}
     # {{{ media support
     class Media:
@@ -175,7 +187,7 @@ class ControllerBase(jobject):
             'media': self.media,
         }
         if self.parent:
-            self.add_to_context('parent')
+            context['parent'] = self.parent
             context['menu'] = self.parent.menu
         return context
 
@@ -282,11 +294,24 @@ class ModelController(ControllerBase):
             if field.rel.to == self.inline.content_class:
                 return field
     # }}}
+    def get_fk_fields(self):
+        fields = []
+        for field in self.content_class._meta.fields:
+            if isinstance(field, related.ForeignKey):
+                fields.append(field)
+        return fields
+
+    def get_reverse_fk_fields(self):
+        names = []
+        for name in self.content_class._meta.get_all_field_names():
+            field = self.content_class._meta.get_field_by_name(name)[0]
+            if isinstance(field, related.RelatedObject) and isinstance(field.field, related.ForeignKey):
+                names.append(name)
+        return names
 
 class ModelFormController(ModelController):
     actions = ('create', 'list', 'edit', 'details')
     # {{{ menu
-    @classmethod
     def get_menu(self):
         menu = menus.Menu()
         controller = menu.add(self.content_class._meta.verbose_name)
@@ -303,8 +328,8 @@ class ModelFormController(ModelController):
     # {{{ forms
     def get_use(self):
         return (
-            #'adminform_object',
-            'multilevel_fieldsets_addon',
+            'adminform_object',
+            #'multilevel_fieldsets_addon',
             'adminformset_objects',
         )
 
@@ -358,7 +383,8 @@ class ModelFormController(ModelController):
         return flatten_fieldsets(self.fieldsets)
 
     def get_fieldsets(self):
-        return [(None, {'fields': self.form_fields,})]
+        print "FIELDSET UNDECLARED", self.__class__
+        return [(self.content_class._meta.verbose_name, {'fields': self.form_fields,})]
 
     def edit(self):
         return self.forms()
@@ -413,7 +439,7 @@ class ModelFormController(ModelController):
         Default formfield for db field callback to use in our form generators.
         """
         kwargs = {}
-        if f.name in self.wysiwyg_field_names:
+        if f.name in self.wysiwyg_fields:
             kwargs['widget'] = widgets.WysiwygWidget
         elif isinstance(f, fields.DateField):
             kwargs['widget'] = admin_widgets.AdminDateWidget
@@ -427,7 +453,7 @@ class ModelFormController(ModelController):
 
         return f.formfield(**kwargs)
 
-    def get_wysiwyg_field_names(self):
+    def get_wysiwyg_fields(self):
         return ('html','body')
 
     def get_form_object(self):
@@ -453,10 +479,10 @@ class ModelFormController(ModelController):
         To set up the formset another controller would get in his list
         formset_objects, overload get_formset_object().
 
-        Uses self.virtual_fields.
+        Uses self.fields_to_formsets.
         """
         objects = []
-        for prop in self.virtual_fields:
+        for prop in self.fields_to_formsets:
             object = self.formset_object_factory(prop, admin)
             objects.append(object)
         return objects
@@ -465,14 +491,14 @@ class ModelFormController(ModelController):
         # figure what model we want an inline from
         related = self.content_class._meta.get_field_by_name(prop)[0].model
         # rely on the parent to get the controller class we want
-        controller_class = self.parent.get_controller(related)
+        controller_object = self.parent.get_controllers_for_content_class(related)
         # fire it as an inline of this controller
-        controller = controller_class(self)
+        controller_object.inline = self
         # get the object we want
         if admin:
-            object = controller.admin_formset_object
+            object = controller_object.admin_formset_object
         else:
-            object = controller.formset_object
+            object = controller_object.formset_object
         return object
 
     def get_admin_inline_options(self):
@@ -510,11 +536,15 @@ class ModelFormController(ModelController):
         The formset object uses self.inline.content_object as related object
         instance if the controller was instanciated with the "inline" argument.
 
-        Uses self.formset_fields or self.inline_formset_fields
+        Uses self.formset_fields or self.inline_formset_fields, if called by an
+        a controller as inline.
         """
         kwargs = {}
         if self.inline:
             kwargs['instance'] = self.inline.content_object
+            # Also copy the request, as we want the other controller
+            # to handle his formset
+            self.request = self.inline.request
         else:
             kwargs['instance'] = self.content_object
         
@@ -541,6 +571,9 @@ class ModelFormController(ModelController):
         else:
             kwargs['fields'] = self.formset_fields
             return modelformset_factory(self.content_class, **kwargs)
+
+    def get_fields_to_formsets(self):
+        return self.reverse_fk_fields
 
     def get_formset_fields(self):
         return self.local_fields
@@ -596,7 +629,10 @@ class StructureController(ModelFormController):
 
 class ControllerNode(ControllerBase):
     actions = ('index',)
+    instances = {}
     def __init__(self, **kwargs):
+        # has a registry: is a singleton
+        self.__class__.instance = self
         self._registry = {} # controller.name -> controller instance
         self._content_class_registry = {} # content_class -> controller instance
         super(ControllerNode, self).__init__(**kwargs)
@@ -607,8 +643,10 @@ class ControllerNode(ControllerBase):
         return menu
 
     @classmethod
-    def factory(self, app_name):
-        node = ControllerNode(name=app_name)
+    def factory(self, app_name, **kwargs):
+        if not 'urlname' in kwargs:
+            kwargs['urlname'] = app_name
+        node = self.instanciate(**kwargs)
         node.register_app(app_name)
         return node
 
@@ -645,11 +683,16 @@ class ControllerNode(ControllerBase):
 
         for registered_controller in self._registry.values():
             if controller.urlname == registered_controller.urlname:
-                raise AlreadyRegistered('A controller with urlname % is already registered in node %s' % (controller.name, self.name))
+                raise AlreadyRegistered('A controller with urlname %s is already registered in node %s' % (controller.urlname, self.urlname))
 
         controller.parent = self
         self._registry[controller.urlname] = controller
         self._content_class_registry[controller.content_class] = controller
+
+    def unregister_controller_for_content_class(self, content_class):
+        controller = self._content_class_registry[content_class]
+        del self._content_class_registry[content_class]
+        del self._registry[controller.urlname]
 
     def get_controllers_for_content_class(self, content_class):
         """
@@ -668,7 +711,7 @@ class ControllerNode(ControllerBase):
         # Add in each model's views.
         for controller in self._registry.values():
             prefix = r'^%s/' % controller.urlname
-            urlpatterns += patterns('', url(prefix, include(controller.urls)))
+            urlpatterns += patterns('', url(prefix, include(controller.urls), kwargs={'parent': self}))
             if settings.DEBUG and controller.media_path:
                 urlpatterns += self.get_static_url(controller.media_path)
 
@@ -688,6 +731,22 @@ class ControllerNode(ControllerBase):
         )
         return urlpatterns
 
+    @classmethod
+    # singleton, for the registry
+    def instanciate(self, **kwargs):
+        if not 'urlname' in kwargs:
+            raise Exception('Singletonning needs "urlname" in kwargs')
+
+        if kwargs['urlname'] in self.instances:
+            node = self.instances[kwargs['urlname']]
+            for arg, value in kwargs.items():
+                setattr(node, arg, value)
+        else:
+            node = self(**kwargs)
+            self.instances[kwargs['urlname']] = node
+        
+        return self.instances[kwargs['urlname']]
+
     def index(self):
         """
         In debug mode, we want a list of controllers and actions that are registered.
@@ -695,5 +754,17 @@ class ControllerNode(ControllerBase):
         """
         if not settings.DEBUG:
             raise Exception('Cannot list controllers if not settings.DEBUG')
-        self.context['controllers'] = self._registry.values()
+        
+        self.context['nodes'] = {}
+
+        for urlname, instance in self.__class__.instances.items():
+            self.context['nodes'][urlname] = {}
+            self.context['nodes'][urlname]['instance'] = instance
+            self.context['nodes'][urlname]['controllers'] = instance._registry
+        
+        if TEST:
+            for urlname, node in self.context['nodes'].items():
+                print urlname, "CTRLS", node['controllers']
+                for urlname, controller in node['controllers'].items():
+                    print urlname, "CTRL", controller, controller.root_url()
     index = setopt(index, urlregex=r'^$', urlname='index')
