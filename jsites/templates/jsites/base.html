@@ -30,13 +30,13 @@
     {% block jsbase %}
     $(document).ready(function()
     {
-        $.getScript('/minefield/media/js/jquery.jsites.js', function() {
+        $.getScript('{{ jsites_media_prefix }}js/jquery.jsites.js', function() {
         {% block jquery %}
         
         // setup css menu
         var arrowimages={
-            down:[ 'downarrowclass',  '/minefield/media/img/arrow-down.gif', 25],
-            right:['rightarrowclass', '/minefield/media/img/arrow-right.gif'],
+            down:[ 'downarrowclass',  '{{ jsites_media_prefix }}img/arrow-down.gif', 25],
+            right:['rightarrowclass', '{{ jsites_media_prefix }}img/arrow-right.gif'],
         };
         // firecss menu
         jquerycssmenu.buildmenu("breadcrumbs", arrowimages)
