@@ -25,14 +25,15 @@ urlpatterns += patterns('',
     # (r'^app_label/', include(jsites.ControllerNode.factory('app_label').urls)),
     # example: 
     (r'^itbm/', include(jsites.ControllerNode.factory('itbm').urls)),
+    (r'^auth/', include(jsites.ControllerNode.factory('auth').urls)),
 )
 
 # single controller, multi-site example
-from itbm.sites import site as itbm
+from itbm.sites import staff
 urlpatterns += patterns('',
     # usage:
     # (r'^staff/',    include(staff.urls)),
     # (r'^partners/', include(partners.urls)),
     # example, main site controller:
-    (r'^%s/' % itbm.urlname, include(itbm.urls)),
+    (r'^%s/' % staff.urlname, include(staff.urls)),
 )
