@@ -185,6 +185,8 @@ class ControllerBase(jobject):
         context = {
             'controller': self,
             'media': self.media,
+            'jsites_media_prefix': settings.JSITES_MEDIA_PREFIX,
+            'menu': self.menu,
         }
         if self.parent:
             context['parent'] = self.parent
