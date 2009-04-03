@@ -22,8 +22,11 @@ staff.unregister_controller_for_content_class(models.Ticket)
 class TicketController(jsites.ModelFormController):
     content_class = models.Ticket
     fieldsets = (
-        ('id', {'fields': (('title', 'description'),)}),
-        ('todo', {'fields': (('price', 'deadline'),)}),
+        ('Ticket', {'fields':(
+            ('title', 'creator', 'owner',),
+            ('description', 'components',),
+            ('creation_date', 'deadline', 'price', 'workflow_status',),
+        )}),
     )
     #structure_class = TicketNode
 
