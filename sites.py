@@ -89,6 +89,8 @@ class ControllerBase(jobject):
             self.inline = None
         if 'parent' not in kwargs:
             self.parent = None
+        if 'is_running' not in kwargs:
+            self.is_running = False
 
         if self.inline:
             # reference to the "running" context
@@ -123,7 +125,7 @@ class ControllerBase(jobject):
 
     @classmethod
     def run(self, request, *args, **kwargs):
-        self = self.instanciate(**kwargs)
+        self = self.instanciate(is_running=True, **kwargs)
 
         self.request = request
         self.args = args
