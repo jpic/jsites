@@ -10,6 +10,7 @@ class PropertyInitialiserMissing(Exception):
 
 class ProgrammablePropertyInitialiser(object):
     _indent=-1
+    _security_stack=[]
     def __init__(self, **kwargs):
         for property, value in kwargs.items():
             setattr(self, property, value)
@@ -53,11 +54,25 @@ class ProgrammablePropertyInitialiser(object):
                 if 'loop' in PROFILE:
                     print "%sChecking for %s (#%s) or %s() in %s" % (
                         self._indent*PROFILE_INDENT, name, item,  self._getter(name), cls)
-        
+
         # its supposed to be a un-initialised variable
         # class getters in the current class have priority
         if self._getter(name) in cls.__dict__:
+            # this stack will be used to figure if getters are calling each others
+            # to prevent user desing from sucking
+            if self._security_stack.count(name) < 2:
+                self._security_stack.append(name)
+            else:
+                # clean before showing
+                defect = []
+                for item in self._security_stack:
+                    if self._security_stack.count(item) > 1 and self._getter(item) not in defect:
+                        defect.append(self._getter(item))
+                raise Exception("Recursion detected between getters: " + unicode(defect) + ", full _security_stack: " + unicode(self._security_stack) )
             value = self._set_and_get(name)
+            # Got the value! we're safe
+            while name in self._security_stack:
+                self._security_stack.remove(name)
             self._indent-=1
             return value
             if 'method' in PROFILE:
