@@ -18,8 +18,8 @@ WORKFLOW=(
 )
 
 class Quote(models.Model):
-    name = models.CharField(max_length=100, verbose_name=_(u'name'), null=True, blank=True)
-    tickets = models.ManyToManyField('Ticket', verbose_name=_(u'tickets'), null=True, blank=True, related_name='quotes')
+    name = models.CharField(max_length=100, verbose_name=_(u'name'))
+    tickets = models.ManyToManyField('Ticket', verbose_name=_(u'tickets'), related_name='quotes')
     creation_date = models.DateField(verbose_name=_(u'creation date'), null=True, blank=True)
     workflow_status = models.CharField(max_length=100, verbose_name=_(u'status'), default=u'consultant to quote', choices=WORKFLOW)
     def __unicode__(self):
@@ -39,22 +39,22 @@ class Ticket(models.Model):
         return '#%s: %s' % (self.pk, self.title)
 
 class UserProfile(models.Model):
-    user = models.ForeignKey(User, verbose_name=_(u'user'), null=True, blank=True)
+    user = models.ForeignKey(User, verbose_name=_(u'user'))
     current_ticket = models.ForeignKey('Ticket', verbose_name=_(u'current ticket'), null=True, blank=True, related_name='worked_on_by')
     def __unicode__(self):
         return unicode(self.user)
 
 class ComponentType(models.Model):
-    name = models.CharField(max_length=100, verbose_name=_(u'name'), null=True, blank=True)
+    name = models.CharField(max_length=100, verbose_name=_(u'name'))
     description = models.TextField(verbose_name=_(u'description'), null=True, blank=True)
     def __unicode__(self):
         return self.name
 
 class Component(models.Model):
-    type = models.ForeignKey('ComponentType', verbose_name=_(u'type'), null=True, blank=True)
-    project = models.ForeignKey('Project', verbose_name=_(u'project'), null=True, blank=True, related_name='components')
+    type = models.ForeignKey('ComponentType', verbose_name=_(u'type'), related_name='components')
+    project = models.ForeignKey('Project', verbose_name=_(u'project'), related_name='components')
     def __unicode__(self):
-        return self.name
+        return "%s (project %s)" % (self.type, self.project)
 
 class Foo(models.Model):
     name = models.CharField(max_length=200, null=True, blank=True)
