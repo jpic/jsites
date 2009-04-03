@@ -15,5 +15,6 @@
 /*Mise en couleurs*/
 @import "couleurs.css";
 
-
-
+body {
+    overflow: scroll;
+}
