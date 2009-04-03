@@ -2,34 +2,9 @@
 {% load operations %}
 
 {% block contents %}
-    {% if nodes %}
-<h2>Controllers</h2>
-{% for urlname, node in nodes.items %}
-    {% with nodes|length as total %}
-    <div class="grid_{{ "100"|divideby:total }}">
-    {% endwith %}
-    <h3>{{ urlname }}</h3>
-    {% for controller_urlname, controller in node.controllers.items %}
-    {% with node.controllers|length as total %}
-    <div class="grid_{{ "100"|divideby:total }}">
-    {% endwith %}
-        <a href="{{ controller.root_url }}" title="{{ controller.name }}">{{ controller.name }}</a>
-            <ul>
-            {% for action in controller.actions %}
-                <li><a href="{{ controller.urlname }}/{{ action }}">{{ action }}</a></li>
-            {% endfor %}
-            </ul>
-    </div>
-    {% endfor %}
-</div>
-{% endfor %}
-    {% else %}
-<h2>Actions</h2>
-<ul>
-        {% for action in controller.actions %}
-    <li><a>{{ action }}</a></li>
-        {% endfor %}
-</ul>
-    {% endif %}
+<h2>Bienvenue</h2>
+<p>
+Le menu horizontal ci-dessus devrait vous aider a naviguer en le site.
+</p>
 {% endblock %}
 {% debug %}
