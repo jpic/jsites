@@ -68,7 +68,7 @@ class ProgrammablePropertyInitialiser(object):
                 for item in self._security_stack:
                     if self._security_stack.count(item) > 1 and self._getter(item) not in defect:
                         defect.append(self._getter(item))
-                raise Exception("Recursion detected between getters: " + unicode(defect) + ", full _security_stack: " + unicode(self._security_stack) )
+                raise Exception("Recursion detected in "+unicode(self)+" between getters: " + unicode(defect) + ", full _security_stack: " + unicode(self._security_stack) )
             value = self._set_and_get(name)
             # Got the value! we're safe
             while name in self._security_stack:

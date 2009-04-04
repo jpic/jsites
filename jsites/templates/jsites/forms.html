@@ -24,6 +24,9 @@ jpicTabManager.parseDjangoAdmin();
     {% for fieldset in adminform_object %}
         {% include "jsites/includes/fieldset.html" %}
     {% endfor %}
+    {% for formset in merged_formset_objects.values %}
+        {{ formset.management_form }}
+    {% endfor %}
 {% endif %}
 {% endblock object_form %}
 

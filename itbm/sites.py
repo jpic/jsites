@@ -2,7 +2,7 @@ import jsites
 from structure.items import *
 import models
 from django.contrib.auth.models import User
-#from jsites.controllers.user import UserController, UserProfileController
+from django.utils.translation import ugettext, ugettext_lazy as _
 
 staff = jsites.ControllerNode.factory('itbm',
     urlname='staff',
@@ -27,9 +27,11 @@ class TicketController(jsites.ModelFormController):
         ('Ticket', {'fields':(
             ('title', 'creator', 'owner',),
             ('description', 'components',),
-            ('creation_date', 'deadline', 'price', 'workflow_status',),
+            ('creation_date', 'deadline',),
+            ('price', 'workflow_status',),
         )}),
     )
+    inline_formset_field_names = ('title',)
     #structure_class = TicketNode
 
 staff.unregister_controller_for_content_class(models.Ticket)
@@ -38,6 +40,15 @@ staff.register(TicketController)
 class UserController(jsites.ModelFormController):
     content_class = User
     field_names_for_merged_formsets = ('profile',)
+    fieldsets = (
+        ('Utilisateur', {'fields': (
+            ('username', 'password', 'current_ticket'),
+            ('first_name', 'last_name', 'email'),
+            ('is_staff', 'is_active', 'is_superuser'),
+            ('last_login', 'date_joined'),
+            ('groups', 'user_permissions'),
+        )}),
+    )
 
 staff.unregister_controller_for_content_class(User)
 staff.register(UserController)
