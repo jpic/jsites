@@ -3,6 +3,7 @@ from django.utils.translation import ugettext as _
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 from django.contrib.auth.models import User
+from django.conf import settings
 
 class Project(models.Model):
     name = models.CharField(max_length=100, verbose_name=_(u'name'), null=True, blank=True)
@@ -28,7 +29,7 @@ class Quote(models.Model):
 class Ticket(models.Model):
     title = models.CharField(max_length=100, verbose_name=_(u'title'))
     deadline = models.DateField(verbose_name=_(u'deadline'))
-    owner = models.ForeignKey(User, verbose_name=_(u'owner'), null=True, blank=True, related_name='owned_tickets')
+    owner = models.ForeignKey(User, verbose_name=_(u'owner'), null=True, blank=True, related_name='owned_tickets', limit_choices_to = {'groups__name__exact': settings.CONSULTANTS_GROUP})
     creator = models.ForeignKey(User, verbose_name=_(u'reporter'), null=True, blank=True, related_name='created_tickets')
     creation_date = models.DateField(verbose_name=_(u'creation date'), null=True, blank=True)
     price = models.IntegerField(verbose_name=_(u'price'), null=True, blank=True)
