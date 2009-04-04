@@ -491,11 +491,11 @@ class ModelFormController(ModelController):
 
     def edit(self):
         return self.forms()
-    edit = setopt(edit, urlname='edit', urlregex=r'^edit/(?P<content_id>.+)/$', verbose_name='modifier')
+    edit = setopt(edit, urlname='edit', urlregex=r'^edit/(?P<content_id>.+)/$', verbose_name=u'modifier')
 
     def create(self):
         return self.forms()
-    create = setopt(create, urlname='create', urlregex=r'^create/$', verbose_name='créer (nouveau)')
+    create = setopt(create, urlname='create', urlregex=r'^create/$', verbose_name=u'créer (nouveau)')
 
     def save_form(self):
         #TODO implement __setattr__
@@ -747,7 +747,7 @@ class ControllerNode(ControllerBase):
         items = {self.name: {}}
 
         for controller in self._registry.values():
-            items[self.name.capitalize()][controller.name.capitalize()] = controller.menu_items
+            items[unicode(self.name.capitalize())][unicode(controller.name.capitalize())] = controller.menu_items
 
         menu = menus.MenuFactories(items).menu
 
@@ -895,7 +895,7 @@ class ControllerNode(ControllerBase):
                 print urlname, "CTRLS", node['controllers']
                 for urlname, controller in node['controllers'].items():
                     print urlname, "CTRL", controller, controller.root_url()
-    index = setopt(index, urlregex=r'^$', urlname='index', verbose_name='accueil')
+    index = setopt(index, urlregex=r'^$', urlname='index', verbose_name=u'accueil')
 
 
 """
