@@ -35,14 +35,6 @@ class TicketController(jsites.ModelFormController):
 staff.unregister_controller_for_content_class(models.Ticket)
 staff.register(TicketController)
 
-class UserProfileController(jsites.ModelFormController):
-    admin_inline_template = 'admin/edit_inline/stacked.html'
-    content_class = models.UserProfile
-    max_formsets_number = 1
-
-staff.unregister_controller_for_content_class(models.UserProfile)
-staff.register(UserProfileController)
-
 class UserController(jsites.ModelFormController):
     content_class = User
     field_names_for_merged_formsets = ('profile',)

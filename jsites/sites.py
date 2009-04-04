@@ -529,15 +529,27 @@ class ModelFormController(ModelController):
         self.add_to_context('merged_formset_objects')
 
     def get_merged_formset_objects(self):
-        merged_formset_objects = {}
+        """
+        This is a formset registry like formset_objects, but it removes
+        any formset_object that should be usable with the content_object
+        jAdminForm, instead of having its own "tab".
+        """
+        merged_formset_objects = {} # new registry, like formset_objects
+
         for name in self.field_names_for_merged_formsets:
+            # remove the formset from the regular registry and 
+            # append it to this other registry
             merged_formset_objects[name] = self.formset_objects.pop(name)
+
+            # also make sure there isn't any adminformset_object for it
             if 'adminformset_objects' in self.use:
                 self.admin_formset_objects.pop(name)
+
         return merged_formset_objects
 
     def get_adminform_object(self):
-        adminform_object = jSiteForm(self.form_object, self.merged_formset_objects, self.fieldsets, self.prepopulated_fields)
+        adminform_object = jSiteForm(self.form_object, self.merged_formset_objects,
+            self.fieldsets, self.prepopulated_fields)
         return adminform_object
 
     def get_prepopulated_fields(self):
@@ -550,6 +562,7 @@ class ModelFormController(ModelController):
     def get_fieldsets(self):
         field_names = self.form_field_names
 
+        # add field names of any formset to merge
         for formset in self.merged_formset_objects.values():
             field_names += formset.forms[0].fields.keys()
 
@@ -669,7 +682,20 @@ class ModelFormController(ModelController):
         controller_class = self.parent.get_controller_classes_for_content_class(related)
         # fire it as an inline of this controller, making sure we pass
         # the correct content_class: the related object we want
-        controller_object = controller_class.instanciate(inline=self, content_class=related, inline_fk_name=prop.field.name)
+        kwargs = {
+            'inline': self,
+            'content_class': related,
+            'inline_fk_name': prop.field.name
+        }
+
+        # make sure it won't give more than one formset_object in
+        # this special case
+        if prop.field.rel.related_name in self.field_names_for_formsets:
+            kwargs['max_formsets_number'] = 1
+            kwargs['formset_deletable'] = False
+
+        controller_object = controller_class.instanciate(**kwargs)
+
         # get the object we want
         # run the getter: because this is a factory method,
         # and because else it won't know about the request!
@@ -763,6 +789,9 @@ class ModelFormController(ModelController):
     def get_max_formsets_number(self):
         return 20
 
+    def get_formset_deletable(self):
+        return self.get_permission(action_name='delete')
+
     def get_formset_class(self):
         """
         Returns a formset class.
@@ -776,7 +805,7 @@ class ModelFormController(ModelController):
         if self.inline:
             kwargs['fields'] = self.formset_field_names
             kwargs['extra']  = self.extra_formsets
-            kwargs['can_delete'] = self.get_permission(action_name='delete')
+            kwargs['can_delete'] = self.formset_deletable
             kwargs['can_order']  = self.orderable_formsets
             kwargs['max_num'] = self.max_formsets_number
             
