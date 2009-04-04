@@ -91,3 +91,5 @@ INSTALLED_APPS = (
 
 # Plesae don't forget trailing slash or nothing will work
 JSITES_MEDIA_PREFIX="/staff/media/"
+
+from itbm.settings import *
