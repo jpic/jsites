@@ -45,9 +45,35 @@ def setopt(func, *args, **kwargs): # {{{
     return func
 # }}}
 
+class jFieldset(helpers.Fieldset):
+    def __init__(self, form, merged_formset_objects, name, **kwargs):
+        self.merged_formset_objects = merged_formset_objects
+        super(jFieldset, self).__init__(form, name, **kwargs)
+
+    def __iter__(self):
+        for field in self.fields:
+            if field in self.form.fields.keys():
+                yield helpers.Fieldline(self.form, field)
+            else:
+                for merged_formset_object in self.merged_formset_objects.values():
+                    for form in merged_formset_object.forms:
+                        if field in form.fields:
+                            yield helpers.Fieldline(form, field)
+
+class jSiteForm(helpers.AdminForm):
+    def __init__(self, form, merged_formset_objects, *args):
+        self.merged_formset_objects = merged_formset_objects
+        super(jSiteForm, self).__init__(form, *args)
+
+    def __iter__(self):
+        for name, options in self.fieldsets:
+            yield jFieldset(self.form, self.merged_formset_objects, name, **options)
+
 # when this variable is enabled:
 # things like loops that should happen in a template happen in python first
-TEST=False
+# this is only to make django useable with Werkzeug debugger
+# set it to False if you ignore that Werkzeug debugger is insanely useful
+TEST=True
 
 def media_converter(media, additionnal_js=(), additionnal_css={}):
     js = []
@@ -332,8 +358,12 @@ class ModelController(ControllerBase):
         return objects
 
     def get_content_object(self):
+        if 'content_class' in self._security_stack:
+            raise Exception('No way to figure content_object, content_class')
+
         if self.content_id:
             return self.content_class.objects.get(pk=self.content_id)
+
         # prepopulate where possible
         if self.fields_initial_values:
             return self.content_class(**self.fields_initial_values)
@@ -394,7 +424,7 @@ class ModelController(ControllerBase):
         self.add_to_context('content_field_objects')
     details = setopt(details, urlname='details', urlregex=r'^(?P<content_id>.+)/$', verbose_name='détails')
 
-    def get_reverse_fk_fields(self):
+    def get_reverse_fk_field_names(self):
         names = []
         for name in self.content_class._meta.get_all_field_names():
             field = self.content_class._meta.get_field_by_name(name)[0]
@@ -402,8 +432,30 @@ class ModelController(ControllerBase):
                 names.append(name)
         return names
 
+    def get_reverse_fk_field_objects(self):
+        return self.field_names_to_objects(self.reverse_fk_field_names)
+
+    def field_names_to_objects(self, names):
+        objects = {}
+        for name in names:
+            objects[name] = self.content_class._meta.get_field_by_name(name)[0]
+        return objects
+
 class ModelFormController(ModelController):
-    actions = ('create', 'list', 'edit', 'details')
+    actions = ('create', 'list', 'edit', 'details', 'delete')
+    def delete(self):
+        pass
+    delete = setopt(delete, urlname='delete', urlregex=r'^delete/(?P<content_id>.+)/$', verbose_name=u'éffacer')
+
+    def get_field_names_for_merged_formsets(self):
+        """
+        Return a list of field names which inline formsets should be part
+        of the content object form.
+
+        Its a template option.
+        """
+        return []
+
     # {{{ menu, get_action_url
     def get_menu_items(self):
         items = {}
@@ -437,7 +489,7 @@ class ModelFormController(ModelController):
 
                 # set to true before elimination tests
                 formsets_valid = True
-                for formset in self.formset_objects:
+                for formset in self.formset_objects.values():
                     if not formset.is_valid():
                         formsets_valid = False
 
@@ -456,7 +508,7 @@ class ModelFormController(ModelController):
 
         # don't leave out any form/formset object media
         self.media += self.form_object.media
-        for formset_object in self.formset_objects:
+        for formset_object in self.formset_objects.values():
             self.media += formset_object.media
 
         # allow template overload per controller-urlname/action
@@ -464,6 +516,9 @@ class ModelFormController(ModelController):
             'jsites/%s/forms.html' % self.urlname,
             'jsites/forms.html',
         ]
+
+        # make sure that any field_names_for_merged_formsets won't be
+        # added to the context as a regular formset
 
         # figure context
         if not 'adminform_object' in self.use:
@@ -474,9 +529,18 @@ class ModelFormController(ModelController):
             self.add_to_context('formset_objects')
         else:
             self.add_to_context('admin_formset_objects')
+        self.add_to_context('merged_formset_objects')
+
+    def get_merged_formset_objects(self):
+        merged_formset_objects = {}
+        for name in self.field_names_for_merged_formsets:
+            merged_formset_objects[name] = self.formset_objects.pop(name)
+            if 'adminformset_objects' in self.use:
+                self.admin_formset_objects.pop(name)
+        return merged_formset_objects
 
     def get_adminform_object(self):
-        adminform_object = helpers.AdminForm(self.form_object, self.fieldsets, self.prepopulated_fields)
+        adminform_object = jSiteForm(self.form_object, self.merged_formset_objects, self.fieldsets, self.prepopulated_fields)
         return adminform_object
 
     def get_prepopulated_fields(self):
@@ -487,7 +551,12 @@ class ModelFormController(ModelController):
         return flatten_fieldsets(self.fieldsets)
 
     def get_fieldsets(self):
-        return [(self.content_class._meta.verbose_name, {'fields': self.form_fields,})]
+        field_names = self.form_field_names
+
+        for formset in self.merged_formset_objects.values():
+            field_names += formset.forms[0].fields.keys()
+
+        return [(self.content_class._meta.verbose_name, {'fields': field_names,})]
 
     def edit(self):
         return self.forms()
@@ -505,18 +574,21 @@ class ModelFormController(ModelController):
         """
         Returns a form class for self.content_class.
 
-        Uses self.form_fields, and self.get_formfield
+        Uses self.form_field_names, and self.formfield_for_dbfield
         as form field for db field callback.
         """
         cls = self.content_class.__name__ + 'Form'
         return modelform_factory(
-            fields=self.form_fields,
+            fields=self.form_field_names,
             model=self.content_class,
-            formfield_callback=self.get_formfield
+            formfield_callback=self.formfield_for_dbfield
         )
 
-    def get_form_fields(self):
-        return self.local_fields
+    def get_form_field_names(self):
+        return self.local_field_names
+
+    def get_form_field_objects(self):
+        return self.field_names_to_objects(self.form_field_names)
 
     def get_inline_fields(self):
         import copy
@@ -530,31 +602,35 @@ class ModelFormController(ModelController):
     def get_inline_fieldsets(self):
         return (None, {'fields': self.inline_fields})
 
-    def get_local_fields(self):
-        local_fields = []
+    def get_local_field_objects(self):
+        objects = {}
         for name, field in self.content_field_objects.items():
             if not isinstance(field, (fields.AutoField, related.RelatedObject)):
-                local_fields.append(name)
-        return local_fields
+                objects[name] = field
+        return objects
 
-    def get_formfield(self, f):
+    def get_local_field_names(self):
+        return self.local_field_objects.keys()
+
+    def formfield_for_dbfield(self, dbfield):
         """
         Default formfield for db field callback to use in our form generators.
         """
         kwargs = {}
-        if f.name in self.wysiwyg_fields:
+        if dbfield.name in self.wysiwyg_fields:
             kwargs['widget'] = widgets.WysiwygWidget
-        elif isinstance(f, fields.DateField):
+        elif isinstance(dbfield, fields.DateField):
             kwargs['widget'] = admin_widgets.AdminDateWidget
-        elif isinstance(f, fields.DateTimeField):
+        elif isinstance(dbfield, fields.DateTimeField):
             kwargs['widget'] = admin_widgets.AdminDateTimeWidget
-        elif isinstance(f, fields.TimeField):
+        elif isinstance(dbfield, fields.TimeField):
             kwargs['widget'] = admin_widgets.AdminTimeWidget
 
         if self.action_name == 'list':
             kwargs['required'] = False
 
-        return f.formfield(**kwargs)
+        formfield = dbfield.formfield(**kwargs)
+        return formfield
 
     def get_wysiwyg_fields(self):
         return ('html','body')
@@ -582,22 +658,21 @@ class ModelFormController(ModelController):
         To set up the formset another controller would get in his list
         formset_objects, overload get_formset_object().
 
-        Uses self.fields_to_formsets.
+        Uses self.field_names_for_formsets.
         """
-        objects = []
-        for prop in self.fields_to_formsets:
-            object = self.formset_object_factory(prop, admin)
-            objects.append(object)
+        objects = {}
+        for name, field in self.field_objects_for_formsets.items():
+            objects[name] = self.formset_object_factory(field, admin)
         return objects
 
     def formset_object_factory(self, prop, admin):
         # figure what model we want an inline from
-        related = self.content_class._meta.get_field_by_name(prop)[0].model
+        related = prop.model
         # rely on the parent to get the controller class we want
         controller_class = self.parent.get_controller_classes_for_content_class(related)
         # fire it as an inline of this controller, making sure we pass
         # the correct content_class: the related object we want
-        controller_object = controller_class.instanciate(inline=self, content_class=related)
+        controller_object = controller_class.instanciate(inline=self, content_class=related, inline_fk_name=prop.field.name)
         # get the object we want
         # run the getter: because this is a factory method,
         # and because else it won't know about the request!
@@ -608,32 +683,52 @@ class ModelFormController(ModelController):
         return object
 
     def get_admin_inline_options(self):
+        options = {}
+        options["template"] = self.admin_inline_template
+        options["prepopulated_fields"] = self.prepopulated_fields
+        options["media"] = self.media
+        options["verbose_name_plural"] = self.content_class._meta.verbose_name_plural
+        options["verbose_name"] = self.content_class._meta.verbose_name
+        # options["show_url"] = self.details_url,
+        return options
+
+    def get_admin_inline_options_mock(self):
+        return self.admin_inline_options_mock_factory(**self.admin_inline_options)
+
+    def admin_inline_options_mock_factory(self, **options):
         class InlineAdminFormSetOptionsMock(object):
             def __init__(self, **kwargs):
                 for property, value in kwargs.items():
                     setattr(self, property, value)
-        options = InlineAdminFormSetOptionsMock(
-            template=self.admin_inline_template,
-            prepopulated_fields=self.prepopulated_fields,
-            media=self.media,
-            verbose_name_plural=self.content_class._meta.verbose_name_plural,
-            verbose_name=self.content_class._meta.verbose_name
-            #show_url=self.details_url,
-        )
-        return options
-
+        mock = InlineAdminFormSetOptionsMock(**options)
+        return mock
     def get_admin_inline_template(self):
         return 'admin/edit_inline/tabular.html'
 
     def get_admin_formset_object(self):
-        object = helpers.InlineAdminFormSet(self.admin_inline_options, self.formset_object, self.fieldsets)
+        object = helpers.InlineAdminFormSet(self.admin_inline_options_mock, self.formset_object, self.fieldsets)
+        if TEST:
+            for inline_admin_form in object:
+                for fieldset in inline_admin_form:
+                    for line in fieldset:
+                        if None in line:
+                            print "GOTCHA"
+                        for field in line:
+                            if field is None:
+                                print "NONE FIELD FOUND", object, inline_admin_form, fieldset ,line, field
         return object
 
     def get_admin_formset_objects(self):
         return self.formset_objects_factory(True)
 
     def get_formset_objects(self):
-        return self.formset_objects_factory(False)
+        if 'adminformset_objects' in self.use:
+            formsets = {}
+            for field_name, admin_formset_object in self.admin_formset_objects.items():
+                formsets[field_name] = admin_formset_object.formset
+            return formsets
+        else:
+            return self.formset_objects_factory(False)
 
     def get_formset_object(self, kwargs = {}):
         """
@@ -659,6 +754,18 @@ class ModelFormController(ModelController):
             formset = self.formset_class(**kwargs)
         return formset 
 
+    def get_inline_fk_name(self):
+        return None
+
+    def get_extra_formsets(self):
+        return 3
+
+    def get_orderable_formsets(self):
+        return False
+
+    def get_max_formsets_number(self):
+        return 20
+
     def get_formset_class(self):
         """
         Returns a formset class.
@@ -670,21 +777,38 @@ class ModelFormController(ModelController):
         """
         kwargs = {}
         if self.inline:
-            kwargs['fields'] = self.inline_formset_fields
+            kwargs['fields'] = self.formset_field_names
+            kwargs['extra']  = self.extra_formsets
+            kwargs['can_delete'] = self.get_permission(action_name='delete')
+            kwargs['can_order']  = self.orderable_formsets
+            kwargs['max_num'] = self.max_formsets_number
+            
+            if self.inline_fk_name: # use the fk_name if any
+                kwargs['fk_name'] = self.inline_fk_name
+            
             return inlineformset_factory(self.inline.content_class,
                 self.content_class, **kwargs)
         else:
-            kwargs['fields'] = self.formset_fields
+            kwargs['fields'] = self.formset_field_names
             return modelformset_factory(self.content_class, **kwargs)
 
-    def get_fields_to_formsets(self):
-        return self.reverse_fk_fields
+    def get_field_names_for_formsets(self):
+        return self.reverse_fk_field_names
 
-    def get_formset_fields(self):
-        return self.local_fields
+    def get_field_objects_for_formsets(self):
+        return self.field_names_to_objects(self.field_names_for_formsets)
 
-    def get_inline_formset_fields(self):
-        return self.local_fields
+    def get_formset_field_objects(self):
+        return self.field_names_to_objects(self.formset_field_names)
+
+    def get_formset_field_names(self):
+        return self.local_field_names
+
+    def get_inline_formset_field_objects(self):
+        return self.field_names_to_objects(self.inline_formset_field_names)
+
+    def get_inline_formset_field_names(self):
+        return self.local_field_names
     # }}}
     # {{{ search/list view
     def get_search_engine(self):
@@ -698,7 +822,7 @@ class ModelFormController(ModelController):
         return engine
 
     def get_list_columns(self):
-        return self.form_fields
+        return self.form_field_names
 
     def get_queryset(self):
         return self.content_class.objects.select_related()
@@ -709,8 +833,10 @@ class ModelFormController(ModelController):
         self.add_to_context('content_class')
         self.add_to_context('content_field_names')
         self.add_to_context('content_field_objects')
+        # additionnal fancey links
+
     list = setopt(list, urlname='list', urlregex=r'^$', verbose_name=u'liste')
-    # }}}i
+    # }}}
 
 class StructureController(ModelFormController):
     def get_structure_object(self):
