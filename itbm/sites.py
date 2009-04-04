@@ -6,6 +6,7 @@ staff = jsites.ControllerNode.factory('itbm',
     urlname='staff',
     name='Chocolat pistache: backoffice'
 )
+staff.register_app('auth')
 staff.unregister_controller_for_content_class(models.Ticket)
 
 #class TicketNode(Node):
