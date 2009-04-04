@@ -1052,5 +1052,5 @@ class ControllerNode(ControllerBase):
 
 """
 I know it wasn't the job of the controller to do all that. The only point of all this magic is to keep *just* sites configurationns all at one place,
-In reality, i'm convinced that a well architectured framework should be built upon a tree configuration of sites with menus, actions configuration (url, callback, name, verbose name), and so on. That's for version 1, be in python, php whatever that's what i beleive a one-man-army it consultant needs.
+In reality, i'm convinced that a well architectured framework should be built upon a tree configuration of sites with menus, actions configuration (url, callback, name, verbose name), models, and so on. That's for version 1, be in python, php whatever that's what i beleive a one-man-army it consultant needs.
 """
