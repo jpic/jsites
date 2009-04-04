@@ -1,13 +1,14 @@
 import jsites
 from structure.items import *
 import models
+from django.contrib.auth.models import User
+#from jsites.controllers.user import UserController, UserProfileController
 
 staff = jsites.ControllerNode.factory('itbm',
     urlname='staff',
     name='Chocolat pistache: backoffice'
 )
 staff.register_app('auth')
-staff.unregister_controller_for_content_class(models.Ticket)
 
 #class TicketNode(Node):
     #def __init__(self):
@@ -31,8 +32,23 @@ class TicketController(jsites.ModelFormController):
     )
     #structure_class = TicketNode
 
+staff.unregister_controller_for_content_class(models.Ticket)
 staff.register(TicketController)
-print staff.get_controllers_for_content_class(models.Ticket)
+
+class UserProfileController(jsites.ModelFormController):
+    admin_inline_template = 'admin/edit_inline/stacked.html'
+    content_class = models.UserProfile
+    max_formsets_number = 1
+
+staff.unregister_controller_for_content_class(models.UserProfile)
+staff.register(UserProfileController)
+
+class UserController(jsites.ModelFormController):
+    content_class = User
+    field_names_for_merged_formsets = ('profile',)
+
+staff.unregister_controller_for_content_class(User)
+staff.register(UserController)
 
 #from structure import html
 #c=TicketController(action_name='forms')

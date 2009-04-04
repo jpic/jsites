@@ -40,7 +40,7 @@ class Ticket(models.Model):
         return '#%s: %s' % (self.pk, self.title)
 
 class UserProfile(models.Model):
-    user = models.ForeignKey(User, verbose_name=_(u'user'))
+    user = models.ForeignKey(User, verbose_name=_(u'user'), related_name='profile')
     current_ticket = models.ForeignKey('Ticket', verbose_name=_(u'current ticket'), null=True, blank=True, related_name='worked_on_by')
     def __unicode__(self):
         return unicode(self.user)

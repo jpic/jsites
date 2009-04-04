@@ -33,7 +33,7 @@ jpicTabManager.parseDjangoAdmin();
         {{ formset_object }}
     {% endfor %}
 {% else %}
-    {% for inline_admin_formset in admin_formset_objects %}
+    {% for inline_admin_formset in admin_formset_objects.values %}
         {% include inline_admin_formset.opts.template %}
     {% endfor %}
 {% endif %}

@@ -79,7 +79,7 @@ INSTALLED_APPS = (
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.sites',
-    'django.contrib.admin',
+    #'django.contrib.admin',
     'django.contrib.admindocs',
     'django.contrib.databrowse',
     'jsites',
@@ -91,5 +91,6 @@ INSTALLED_APPS = (
 
 # Plesae don't forget trailing slash or nothing will work
 JSITES_MEDIA_PREFIX="/staff/media/"
+AUTH_PROFILE_MODULE="itbm.UserProfile"
 
 from itbm.settings import *
