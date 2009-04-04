@@ -1,3 +1,4 @@
+# vim: set fileencoding=utf8 :
 # {{{ imports
 import re
 from django import http, template
