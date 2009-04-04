@@ -52,11 +52,11 @@ $('#hide_add_object').click(function(event){
     <table class="objectinfo">
         <thead>
             <tr>
-            {% for field in content_fields %}
+            {% for name, field in content_field_objects.items %}
                 {% if field.verbose_name %}
                 <th>{{ field.verbose_name|capfirst }}</th>
                 {% else %}
-                <th>{{ field|capfirst }}</th>
+                <th>{{ name|capfirst }}</th>
                 {% endif %}
             {% endfor %}
             </tr>
@@ -64,9 +64,9 @@ $('#hide_add_object').click(function(event){
         <tbody>
         {% for object in search_engine.filter_queryset.all %}
             <tr>
-                {% for field in content_fields %}
+                {% for field in content_field_objects.keys %}
                 <td>
-                    {{ field|prop:object }}
+                    {{ field|model_prop:object }}
                 </td>
                 {% endfor %}
             </tr>
