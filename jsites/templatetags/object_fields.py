@@ -38,7 +38,9 @@ def model_prop(value, arg):
 
     # class defined in another class method: can't import it, zen.
     if field.__class__.__name__ == 'ManyRelatedManager' \
-        or isinstance(field, related.RelatedObject):
+        or isinstance(field, related.RelatedObject) \
+        or isinstance(field, related.ManyToManyField):
+
         try:
             count = getattr(object, prop).count()
         except Exception:
@@ -52,6 +54,7 @@ def model_prop(value, arg):
         for value in getattr(object, prop).all():
             html += '<li>%s</li>' % (value,)
         html += '</ul>'
+
         return mark_safe(html)
 
     value = getattr(object, prop)
