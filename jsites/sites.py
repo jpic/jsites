@@ -47,15 +47,15 @@ def setopt(func, *args, **kwargs): # {{{
 
 # when this variable is enabled:
 # things like loops that should happen in a template happen in python first
-# this is only to make django useable with Werkzeug debugger
-# set it to False if you ignore that Werkzeug debugger is insanely useful
-TEST=False
+# this is only to make template crashes happen before django template
+# takes the relay, making crashes debugable Werkzeug debugger
+TEST=True
 
 class jSiteForm(helpers.AdminForm):
-    def __init__(self, form, merged_formset_objects, *args):
+    def __init__(self, form, merge_formset_objects, *args):
         super(jSiteForm, self).__init__(form, *args)
         self.field_forms = {}
-        for formset in merged_formset_objects.values():
+        for formset in merge_formset_objects.values():
             for field in formset.forms[0].fields:
                 self.field_forms[field] = formset.forms[0]
 
@@ -169,13 +169,11 @@ class ControllerBase(jobject):
             self.name = self.urlname
 
         # back up any variable to kwargs
-        for kwarg in self.backup_kwargs:
+        for kwarg in self.add_to_kwargs:
             self.kwargs[kwarg] = getattr(self, kwarg)
     
     def get_permission(self, user=None, action_name=None, kwargs={}):
-        """
-        Wraps around check_permission.
-        """
+        """ Wraps around check_permission, setting controller instance defaults """
         if not self.is_running and not user and not action_name:
             raise Exception("Not giving away a permission without action_name and user kwargs if not running")
 
@@ -189,13 +187,18 @@ class ControllerBase(jobject):
         return self.check_permission(user, action_name, kwargs)
 
     def check_permission(self, user, action_name, kwargs):
-        """
-        This is what is supposed to be overloaded.
-        """
+        """ Checks if a user can request an action with specified kwargs """
         return True
 
 # {{{ navigation/menu
     def get_menu_items(self):
+        """
+        Optionnaly recursive dict of verbose_name -> url
+        
+        By default, it checks for the verbose_name option of all method names
+        declared in this class actions, and uses get_action_url(action_method_name)
+        to reverse the action url.
+        """
         items = {}
 
         # try to add each action by default
@@ -205,6 +208,7 @@ class ControllerBase(jobject):
         return items
 
     def get_menu(self):
+        """ Append all menu items to the parent menu, or a new menu instance """
         if self.parent:
             return self.parent.menu
 
@@ -212,15 +216,30 @@ class ControllerBase(jobject):
         # append a MenuItem for each menu_items to menus
         for name, url in self.menu_items.items():
             menu.add(name, url)
+
         return menu
 # }}}
     # {{{ static/bootstrap: get_urls, instanciate, run.
     @classmethod
     def instanciate(self, **kwargs):
+        """
+        Return a new instance of the controller, with the givin kwargs 
+        Used by run()
+        """
         return self(**kwargs)
 
     @classmethod
     def run(self, request, *args, **kwargs):
+        """
+        This method should instanciate a controller, check if permissions
+        are OK, run the action and return a response.
+
+        If the action doesn't return a response (instance of
+        django.http.HttpResponse), then self.get_response will be called
+        through self.response.
+
+        This allows to cache responses.
+        """
         self = self.instanciate(is_running=True, request=request, **kwargs)
 
         # do permission check after setup, but before
@@ -239,6 +258,14 @@ class ControllerBase(jobject):
         return self.response
 
     def get_urls(self): 
+        """
+        Returns a url.patterns for all actions.
+
+        This is configurable by setting options to an action method, ie:
+        details = setopt(details, urlname='details', urlregex=r'^(?P<content_id>.+)/$')
+
+        Other options are settable, but only urlname and urlregex are used here.
+        """
         urlpatterns = urls.patterns('')
         for action_method_name in self.actions:
             action = getattr(self, action_method_name)
@@ -263,10 +290,23 @@ class ControllerBase(jobject):
                 )
         return urlpatterns
 
-    def get_backup_kwargs(self):
+    def get_add_to_kwargs(self):
+        """
+        List of instance properties to copy to self.kwargs, done in __init__.
+
+        For performance purposes, its possible to add values that are for example
+        reversed from models definitions: get_formset_field_objects etc ...
+        """
         return []
 
     def root_url(self):
+        """
+        Return the root url of the controller.
+
+        It is not supposed to be hard coded.
+        It prepends the urlname of the parent to its own urlname.
+        """
+        #TODO make recursive parent check
         if self.parent:
             return "/%s/%s" % (self.parent.urlname, self.urlname)
         else:
@@ -294,18 +334,30 @@ class ControllerBase(jobject):
     # }}}
     # {{{ context
     def get_context(self):
+        """
+        Returns the context to use as base.
+        
+        By default, this adds the following variables:
+        - controller is the instance,
+        - media is self.media,
+        - jsites_media_prefix is settings.JSITES_MEDIA_PREFIX
+        - menu is self.menu or the paren't.
+        - parent is the parent instance if any.
+        """
         context = {
             'controller': self,
             'media': self.media,
             'jsites_media_prefix': settings.JSITES_MEDIA_PREFIX,
-            'menu': self.menu,
         }
         if self.parent:
             context['parent'] = self.parent
             context['menu'] = self.parent.menu
+        else:
+            context['menu'] = self.menu
         return context
 
     def add_to_context(self, name):
+        """ Copies a variable from this instance to self.context """
         self.context[name] = getattr(self, name)
     # }}}
     # {{{ action_url, action, action_name, action_method_name
@@ -364,22 +416,45 @@ class ControllerBase(jobject):
 class ModelController(ControllerBase):
 # {{{ content_{class,id,fields,object}, fields_initial_values
     def get_content_class(self):
+        """  Return the "model class" used for the contents to display. """
         if self.content_object:
             return self.content_object.__class__
 
     def get_content_id(self):
+        """
+        Returns the id of the requested content, if any.
+        Checks self.kwargs by default.
+        """
         if 'content_id' in self.kwargs:
             return self.kwargs['content_id']
         return None
 
     def get_content_field_names(self):
+        """ Return all field names for content class. """
         return self.content_class._meta.get_all_field_names()
 
     def get_content_field_objects(self):
-        objects = {}
-        for name in self.content_field_names:
-            objects[name] = self.content_class._meta.get_field_by_name(name)[0]
-        return objects
+        """ Field instances for content_field_names. """
+        return self.field_names_to_objects(self.content_field_names)
+
+    def get_local_field_names(self):
+        """
+        Returns a list field names that are defined in the content class
+        itself and are not auto fields.
+        """
+        names = []
+        for field in self.content_class._meta.fields:
+            if not isinstance(field, (fields.AutoField, related.RelatedObject)):
+                names.append(field.name)
+        
+        for field in self.content_class._meta.many_to_many:
+            names.append(field.name)
+
+        return names
+
+    def get_local_field_objects(self):
+        """ Objects of local_field_names. """
+        return self.field_names_to_objects(self.local_field_names)
 
     def get_content_object(self):
         if 'content_class' in self._security_stack:
@@ -465,20 +540,20 @@ class ModelController(ControllerBase):
             objects[name] = self.content_class._meta.get_field_by_name(name)[0]
         return objects
 
+    def get_required_field_names(self):
+        required = []
+        for name, field in self.content_field_objects.items():
+            if not hasattr(field, 'blank'):
+                continue
+            if not field.blank and not field.null:
+                required.append(name)
+        return required
+
 class ModelFormController(ModelController):
     actions = ('create', 'list', 'edit', 'details', 'delete')
     def delete(self):
-        pass
+        raise NotImplemented()
     delete = setopt(delete, urlname='delete', urlregex=r'^delete/(?P<content_id>.+)/$', verbose_name=u'éffacer')
-
-    def get_field_names_for_merged_formsets(self):
-        """
-        Return a list of field names which inline formsets should be part
-        of the content object form.
-
-        Its a template option.
-        """
-        return []
 
     # {{{ menu, get_action_url
     def get_menu_items(self):
@@ -494,14 +569,19 @@ class ModelFormController(ModelController):
 
         return items
     # }}}
-    # {{{ forms
     def get_use(self):
+        """
+        Lise of "use flags".
+        """
         return (
             'adminform_object',
             'adminformset_objects',
         )
 
     def forms(self):
+        """
+        Forms view, used by edit and create.
+        """
         if self.request.method == 'POST':
             form_valid = False
             formsets_valid = False
@@ -549,58 +629,99 @@ class ModelFormController(ModelController):
             self.add_to_context('formset_objects')
         else:
             self.add_to_context('admin_formset_objects')
-        self.add_to_context('merged_formset_objects')
+        self.add_to_context('merge_formset_objects')
 
-    def get_merged_formset_objects(self):
+    def get_merge_formset_objects(self):
         """
         This is a formset registry like formset_objects, but it removes
         any formset_object that should be usable with the content_object
         jAdminForm, instead of having its own "tab".
         """
-        merged_formset_objects = {} # new registry, like formset_objects
+        merge_formset_objects = {} # new registry, like formset_objects
 
-        for name in self.field_names_for_merged_formsets:
+        for name in self.field_names_for_merge_formsets:
             # remove the formset from the regular registry and 
             # append it to this other registry
-            merged_formset_objects[name] = self.formset_objects.pop(name)
+            merge_formset_objects[name] = self.formset_objects.pop(name)
 
             # also make sure there isn't any adminformset_object for it
             if 'adminformset_objects' in self.use:
                 self.admin_formset_objects.pop(name)
 
-        return merged_formset_objects
+        return merge_formset_objects
 
     def get_adminform_object(self):
-        adminform_object = jSiteForm(self.form_object, \
-            self.merged_formset_objects, self.fieldsets, \
+        """
+        Instanciate an AdminForm for this form object etc ...
+        Actually, we use our own set of helpers to support formsets
+        as well.
+        """
+        adminform_object = jSiteForm(self.form_object,
+            self.merge_formset_objects, self.fieldsets,
             self.prepopulated_fields)
         return adminform_object
 
     def get_prepopulated_fields(self):
+        """
+        Dict of fieldname -> value to use if the content object is
+        not yet saved.
+        """
         return {}
 
     def get_flat_fieldsets(self):
-        """Returns a list of field names from an admin fieldsets structure."""
+        """
+        Returns a list of field names from an admin fieldsets structure.
+        """
         return flatten_fieldsets(self.fieldsets)
 
     def get_fieldsets(self):
-        field_names = self.form_field_names
+        """
+        Return a fieldsets tuple of configurations for admin.helpers.Fieldset
+        Actually, it is possible to use fields from a formset that was created
+        for a field in self.field_names_for_merge_formsets.
+
+        By default, it makes one fieldset out of all of self.form_field_names
+        and self.merge_formset_objects, with self.formfields_per_line.
+        Also, it omits the id field.
+        """
+        names = self.form_field_names
 
         # add field names of any formset to merge
-        for formset in self.merged_formset_objects.values():
-            field_names += formset.forms[0].fields.keys()
+        for formset in self.merge_formset_objects.values():
+            names += formset.forms[0].fields.keys()
+        
+        fieldset = [self.content_class._meta.verbose_name, {'fields': []}]
+        line = []
+        for name in names:
+            if name == 'id':
+                continue
+            if len(line) >= self.formfields_per_line:
+                fieldset[1]['fields'].append(line)
+                line = []
+            line.append(name)
+        
+        if line:
+            fieldset[1]['fields'].append(line)
+        
+        #TODO cache fieldsets
+        return (fieldset,)
 
-        return [(self.content_class._meta.verbose_name, {'fields': field_names,})]
+    def get_formfields_per_line(self):
+        """ Default number of form fields per line """
+        return 3
 
     def edit(self):
+        """ Action wrapping self.forms, requiring a content_id """
         return self.forms()
     edit = setopt(edit, urlname='edit', urlregex=r'^edit/(?P<content_id>.+)/$', verbose_name=u'modifier')
 
     def create(self):
+        """ Action wrapping around self.forms, requiring no content_id """
         return self.forms()
     create = setopt(create, urlname='create', urlregex=r'^create/$', verbose_name=u'créer (nouveau)')
 
     def save_form(self):
+        """ Saves self.form_object """
         #TODO implement __setattr__
         self.set_content_object(self.form_object.save())
 
@@ -619,33 +740,19 @@ class ModelFormController(ModelController):
         )
 
     def get_form_field_names(self):
+        """ List of field names to use for self.form_class """
         return self.local_field_names
 
     def get_form_field_objects(self):
+        """ List of field instances to use for self.form_class """
         return self.field_names_to_objects(self.form_field_names)
-
-    def get_inline_fields(self):
-        import copy
-        fields = copy.copy(self.local_fields)
-        fields.remove(self.inline_relation_field.name)
-        return fields
-
-    def get_local_field_objects(self):
-        objects = {}
-        for name, field in self.content_field_objects.items():
-            if not isinstance(field, (fields.AutoField, related.RelatedObject)):
-                objects[name] = field
-        return objects
-
-    def get_local_field_names(self):
-        return self.local_field_objects.keys()
 
     def formfield_for_dbfield(self, dbfield):
         """
         Default formfield for db field callback to use in our form generators.
         """
         kwargs = {}
-        if dbfield.name in self.wysiwyg_fields:
+        if dbfield.name in self.wysiwyg_field_names:
             kwargs['widget'] = widgets.WysiwygWidget
         elif isinstance(dbfield, fields.DateField):
             kwargs['widget'] = admin_widgets.AdminDateWidget
@@ -660,8 +767,14 @@ class ModelFormController(ModelController):
         formfield = dbfield.formfield(**kwargs)
         return formfield
 
-    def get_wysiwyg_fields(self):
-        return ('html','body')
+    def get_wysiwyg_field_names(self):
+        """
+        List of field names to decorate with a wysiwyg in the ui
+
+        Again aiming for sensible defaults, field named 'html',
+        'body' or 'contents' are returned by default.
+        """
+        return ('html','body', 'contents')
 
     def get_form_object(self):
         """
@@ -675,6 +788,7 @@ class ModelFormController(ModelController):
         return form 
 
     def save_formsets(self):
+        """ Saves all self.formset_objects """
         for formset_object in self.formset_objects.values():
             formset_object.save()
 
@@ -686,7 +800,8 @@ class ModelFormController(ModelController):
         To set up the formset another controller would get in his list
         formset_objects, overload get_formset_object().
 
-        Uses self.field_names_for_formsets.
+        Uses self.field_names_for_formsets, and self.formset_object_factory
+        for each formset_object to do.
         """
         objects = {}
         for name, field in self.field_objects_for_formsets.items():
@@ -743,6 +858,7 @@ class ModelFormController(ModelController):
                     setattr(self, property, value)
         mock = InlineAdminFormSetOptionsMock(**options)
         return mock
+
     def get_admin_inline_template(self):
         return 'admin/edit_inline/tabular.html'
 
@@ -751,15 +867,19 @@ class ModelFormController(ModelController):
 
     def get_admin_formset_object(self):
         object = helpers.InlineAdminFormSet(self.admin_inline_options_mock, self.formset_object, self.formset_fieldsets)
-        if TEST:
+        
+        if TEST: # run tests that will break in Werkzeug
+            # what? the way we do fieldsets is retarded?
+            # then use a node layout and send me the patch jamespic@gmail.com TYIA
+            # omg i need a couch.
             for inline_admin_form in object:
                 for fieldset in inline_admin_form:
                     for line in fieldset:
-                        if None in line:
-                            print "GOTCHA"
                         for field in line:
                             if field is None:
-                                print "NONE FIELD FOUND", object, inline_admin_form, fieldset ,line, field
+                                print "!None field found, that wouldn't work in the template"
+                                print object, inline_admin_form, fieldset ,line, field
+        
         return object
 
     def get_admin_formset_objects(self):
@@ -773,6 +893,15 @@ class ModelFormController(ModelController):
             return formsets
         else:
             return self.formset_objects_factory(False)
+
+    def get_field_names_for_merge_formsets(self):
+        """
+        Return a list of field names which inline formsets should be part
+        of the content object form.
+
+        Its a template option.
+        """
+        return []
 
     def get_formset_object(self, kwargs = {}):
         """
@@ -798,22 +927,7 @@ class ModelFormController(ModelController):
             formset = self.formset_class(**kwargs)
 
         return formset 
-
-    def get_inline_fk_name(self):
-        return None
-
-    def get_extra_formsets(self):
-        return 3
-
-    def get_orderable_formsets(self):
-        return False
-
-    def get_max_formsets_number(self):
-        return 20
-
-    def get_formset_deletable(self):
-        return self.get_permission(action_name='delete')
-
+    
     def get_formset_class(self):
         """
         Returns a formset class.
@@ -840,24 +954,102 @@ class ModelFormController(ModelController):
             kwargs['fields'] = self.formset_field_names
             return modelformset_factory(self.content_class, **kwargs)
 
+    def get_inline_fk_name(self):
+        """
+        Return the default fk_name to use.
+        Better to pass it as an instance keyword argument, in general.
+        """
+        return None
+
+    def get_extra_formsets(self):
+        """
+        Number of formsets in addition to the number of objects to
+        formset.
+        """
+        return 3
+
+    def get_orderable_formsets(self):
+        """
+        Is the formset orderable? Django does not yet make use of it in admin
+        and neiter do we, at the moment.
+        """
+        return False
+
+    def get_max_formsets_number(self):
+        """
+        Return the maximum number of formsets to allow.
+        """
+        return 20
+
+    def get_formset_deletable(self):
+        """
+        Return true if it should be possible to delete formsets.
+        This displays a "Delete" checkbox with all formsets.
+        """
+        return self.get_permission(action_name='delete')
+
     def get_field_names_for_formsets(self):
+        """
+        Any of those fields will have formsets instead of a widget.
+        """
         return self.reverse_fk_field_names
 
+
     def get_field_objects_for_formsets(self):
+        """
+        Return field objects for self.field_names_for_formsets.
+        Uses self.field_names_for_formsets by default.
+        """
         return self.field_names_to_objects(self.field_names_for_formsets)
 
+    def get_formset_field_names(self):
+        """
+        Names of fields for this content class formset.
+        """
+        return self.local_field_names
+    
     def get_formset_field_objects(self):
+        """
+        Instances of fields for this content class formset.
+        Uses self.formset_field_names by default.
+        """
         return self.field_names_to_objects(self.formset_field_names)
 
-    def get_formset_field_names(self):
-        return self.local_field_names
+    def get_inline_formset_field_names(self):
+        """
+        Returns a list of fields to use when creating inline formsets
+        for a related object.
+        
+        Use any field name that is in self.inline.flat_fieldsets
+        and in self.content_field_names.
+
+        It will use required field names unless there are less than
+        self.inline_formset_field_number total names.
+        """
+        names = []
+        if self.inline:
+            for name in self.inline.flat_fieldsets:
+                if name in self.content_field_names:
+                    names.append(name)
+
+        if len(self.local_field_names) + len(names) <= self.inline_formset_fields_number:
+            names += self.local_field_names
+        else:
+            names += self.required_field_names
+
+        return names
+
+    def get_inline_formset_fields_number(self):
+        return 5
 
     def get_inline_formset_field_objects(self):
+        """
+        Instances of fields to use when creating inline formsets
+        for a related object.
+        Uses self.inline_formset_field_names by default.
+        """
         return self.field_names_to_objects(self.inline_formset_field_names)
 
-    def get_inline_formset_field_names(self):
-        return self.local_field_names
-    # }}}
     # {{{ search/list view
     def get_search_engine(self):
         import jsearch
@@ -882,7 +1074,6 @@ class ModelFormController(ModelController):
         self.add_to_context('content_field_names')
         self.add_to_context('content_field_objects')
         # additionnal fancey links
-
     list = setopt(list, urlname='list', urlregex=r'^$', verbose_name=u'liste')
     # }}}
 
@@ -910,6 +1101,7 @@ class StructureController(ModelFormController):
 class ControllerNode(ControllerBase):
     actions = ('index',)
     instances = {}
+    warned = False
     def __init__(self, **kwargs):
         # has a registry: is a singleton
         self.__class__.instance = self
@@ -962,16 +1154,17 @@ class ControllerNode(ControllerBase):
         for later re-instanciation.
         """
         if isinstance(controller, type):
-            if settings.DEBUG:
+            if settings.DEBUG and not self.__class__.warned:
                 print """Notice: register() converted controller class to instance
     Apparently, you're new to jsites. The differences between jsites and admin/databrowse registries are:
     - instances are registered, its the job of the controller instance get_urls() to pass static call to run() to urls.url(),
     - you can work with instances in your sites definition,
     - kwargs passed to the controller instance constructor are backed up in urls(),
-    - add any "lazy" programmable property name to get_backup_kwargs() to add variables to backup (and not re-program at each run).
+    - add any "lazy" programmable property name to get_add_to_kwargs() to add variables to backup (and not re-program at each run).
     You will notice that several controllers per model or several instances of the same controller class is planned to be supported,
     but it won't let you fine-tune formsets, because _content_class_registry only does register one controller per content_class, ATM.
 """
+            self.__class__.warned = True
             controller = controller()
 
         for registered_controller in self._registry.values():

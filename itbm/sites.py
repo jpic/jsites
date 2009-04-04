@@ -31,7 +31,6 @@ class TicketController(jsites.ModelFormController):
             ('price', 'workflow_status',),
         )}),
     )
-    inline_formset_field_names = ('title',)
     #structure_class = TicketNode
 
 staff.unregister_controller_for_content_class(models.Ticket)
@@ -39,7 +38,7 @@ staff.register(TicketController)
 
 class UserController(jsites.ModelFormController):
     content_class = User
-    field_names_for_merged_formsets = ('profile',)
+    field_names_for_merge_formsets = ('profile',)
     fieldsets = (
         ('Utilisateur', {'fields': (
             ('username', 'password', 'current_ticket'),

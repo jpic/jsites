@@ -1,3 +1,15 @@
+TODO Sunday
+- 30 implement asmselect
+- 30 get constraints js config auto-discovered
+- 60 import secure storage backend
+- 60 implement ordering on search results
+- 45 add site views: login, register, logout, profile, change password
+- 60 add controller views: save search criterias, get mail when new results
+- 60 implement comments in details
+- 120 import carto data
+
+7.75 hours, count 10.
+
 Planning
 
 ========= == =================================================================
