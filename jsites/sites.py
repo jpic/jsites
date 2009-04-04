@@ -322,9 +322,14 @@ class ModelController(ControllerBase):
             return self.kwargs['content_id']
         return None
 
-    def get_content_fields(self):
-        f = self.content_class._meta.get_all_field_names()
-        return f
+    def get_content_field_names(self):
+        return self.content_class._meta.get_all_field_names()
+
+    def get_content_field_objects(self):
+        objects = {}
+        for name in self.content_field_names:
+            objects[name] = self.content_class._meta.get_field_by_name(name)[0]
+        return objects
 
     def get_content_object(self):
         if self.content_id:
@@ -357,8 +362,7 @@ class ModelController(ControllerBase):
         setting 'related_name' in a FK pointing to self.content_class.
         """
         virtual_fields = []
-        for field_name in self.content_fields:
-            field = self.content_class._meta.get_field_by_name(field_name)[0]
+        for name, field in self.content_field_objects.items():
             if isinstance(field, related.RelatedObject) \
                 and not isinstance(field, fields.AutoField):
                 virtual_fields.append(field_name)
@@ -368,8 +372,7 @@ class ModelController(ControllerBase):
         if not self.inline:
             raise NotAsInline()
 
-        for field_name in self.inline.content_fields:
-            field = self.inline.content_class._meta.get_field_by_name(field_name)[0]
+        for name, field in self.inline.content_field_objects.items():
             if not hasattr(field, 'field'):
                 continue
             field = field.field
@@ -387,7 +390,8 @@ class ModelController(ControllerBase):
 
     def details(self):
         self.add_to_context('content_object')
-        self.add_to_context('content_fields')
+        self.add_to_context('content_field_names')
+        self.add_to_context('content_field_objects')
     details = setopt(details, urlname='details', urlregex=r'^(?P<content_id>.+)/$', verbose_name='détails')
 
     def get_reverse_fk_fields(self):
@@ -528,10 +532,9 @@ class ModelFormController(ModelController):
 
     def get_local_fields(self):
         local_fields = []
-        for field_name in self.content_fields:
-            field = self.content_class._meta.get_field_by_name(field_name)[0]
+        for name, field in self.content_field_objects.items():
             if not isinstance(field, (fields.AutoField, related.RelatedObject)):
-                local_fields.append(field_name)
+                local_fields.append(name)
         return local_fields
 
     def get_formfield(self, f):
@@ -704,8 +707,9 @@ class ModelFormController(ModelController):
         self.search_engine.parse_request(self.request)
         self.add_to_context('search_engine')
         self.add_to_context('content_class')
-        self.add_to_context('content_fields')
-    list = setopt(list, urlname='list', urlregex=r'^$', verbose_name='liste')
+        self.add_to_context('content_field_names')
+        self.add_to_context('content_field_objects')
+    list = setopt(list, urlname='list', urlregex=r'^$', verbose_name=u'liste')
     # }}}i
 
 class StructureController(ModelFormController):
@@ -726,7 +730,7 @@ class StructureController(ModelFormController):
             'jsites/%s/structured_forms.html' % self.urlname,
             'jsites/structured_forms.html',
         ]
-    def get_content_fields(self):
+    def get_content_field_names(self):
         return self.structure_object.get_matching_leaf_names(editable=True, persistent=True)
 
 class ControllerNode(ControllerBase):
