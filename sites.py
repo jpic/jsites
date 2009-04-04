@@ -45,35 +45,59 @@ def setopt(func, *args, **kwargs): # {{{
     return func
 # }}}
 
-class jFieldset(helpers.Fieldset):
-    def __init__(self, form, merged_formset_objects, name, **kwargs):
-        self.merged_formset_objects = merged_formset_objects
-        super(jFieldset, self).__init__(form, name, **kwargs)
-
-    def __iter__(self):
-        for field in self.fields:
-            if field in self.form.fields.keys():
-                yield helpers.Fieldline(self.form, field)
-            else:
-                for merged_formset_object in self.merged_formset_objects.values():
-                    for form in merged_formset_object.forms:
-                        if field in form.fields:
-                            yield helpers.Fieldline(form, field)
-
-class jSiteForm(helpers.AdminForm):
-    def __init__(self, form, merged_formset_objects, *args):
-        self.merged_formset_objects = merged_formset_objects
-        super(jSiteForm, self).__init__(form, *args)
-
-    def __iter__(self):
-        for name, options in self.fieldsets:
-            yield jFieldset(self.form, self.merged_formset_objects, name, **options)
-
 # when this variable is enabled:
 # things like loops that should happen in a template happen in python first
 # this is only to make django useable with Werkzeug debugger
 # set it to False if you ignore that Werkzeug debugger is insanely useful
-TEST=True
+TEST=False
+
+class jSiteForm(helpers.AdminForm):
+    def __init__(self, form, merged_formset_objects, *args):
+        super(jSiteForm, self).__init__(form, *args)
+        self.field_forms = {}
+        for formset in merged_formset_objects.values():
+            for field in formset.forms[0].fields:
+                self.field_forms[field] = formset.forms[0]
+
+    def __iter__(self):
+        for name, options in self.fieldsets:
+            yield jFieldset(self.form, self.field_forms, name, **options)
+
+class jFieldset(helpers.Fieldset):
+    def __init__(self, form, field_forms, name, **kwargs):
+        super(jFieldset, self).__init__(form, name, **kwargs)
+        self.field_forms = field_forms
+
+    def __iter__(self):
+        for field in self.fields:
+            yield jFieldline(self.form, self.field_forms, field)
+
+class jFieldline(helpers.Fieldline):
+    def __init__(self, form, field_forms, field):
+        super(jFieldline, self).__init__(form, field)
+        self.field_forms = field_forms
+
+    def __iter__(self):
+        for i, field in enumerate(self.fields):
+            yield jAdminField(self.form, self.field_forms, field, is_first=(i == 0))
+    def errors(self):
+        errors = []
+        for field in self.fields:
+            if field not in self.fields_forms:
+                form = self.form
+            else:
+                form = self.field_forms[field]
+
+            errors.append(form[field].errors.as_ul())
+
+        return mark_safe(u'\n'.join(errors).strip('\n'))
+
+class jAdminField(helpers.AdminField):
+    def __init__(self, form, field_forms, field, is_first):
+        if not field in field_forms:
+            super(jAdminField, self).__init__(form, field, is_first)
+        else:
+            super(jAdminField, self).__init__(field_forms[field], field, is_first)
 
 def media_converter(media, additionnal_js=(), additionnal_css={}):
     js = []
@@ -474,7 +498,6 @@ class ModelFormController(ModelController):
     def get_use(self):
         return (
             'adminform_object',
-            #'multilevel_fieldsets_addon',
             'adminformset_objects',
         )
 
@@ -548,8 +571,9 @@ class ModelFormController(ModelController):
         return merged_formset_objects
 
     def get_adminform_object(self):
-        adminform_object = jSiteForm(self.form_object, self.merged_formset_objects,
-            self.fieldsets, self.prepopulated_fields)
+        adminform_object = jSiteForm(self.form_object, \
+            self.merged_formset_objects, self.fieldsets, \
+            self.prepopulated_fields)
         return adminform_object
 
     def get_prepopulated_fields(self):
@@ -606,12 +630,6 @@ class ModelFormController(ModelController):
         fields.remove(self.inline_relation_field.name)
         return fields
 
-    def get_flat_inline_fieldsets(self):
-        return flatten_fieldsets(self.inline_fieldsets)
-
-    def get_inline_fieldsets(self):
-        return (None, {'fields': self.inline_fields})
-
     def get_local_field_objects(self):
         objects = {}
         for name, field in self.content_field_objects.items():
@@ -657,7 +675,7 @@ class ModelFormController(ModelController):
         return form 
 
     def save_formsets(self):
-        for formset_object in self.formset_objects:
+        for formset_object in self.formset_objects.values():
             formset_object.save()
 
     def formset_objects_factory(self, admin):
@@ -728,8 +746,11 @@ class ModelFormController(ModelController):
     def get_admin_inline_template(self):
         return 'admin/edit_inline/tabular.html'
 
+    def get_formset_fieldsets(self):
+        return [(None, {'fields':self.inline_formset_field_names})]
+
     def get_admin_formset_object(self):
-        object = helpers.InlineAdminFormSet(self.admin_inline_options_mock, self.formset_object, self.fieldsets)
+        object = helpers.InlineAdminFormSet(self.admin_inline_options_mock, self.formset_object, self.formset_fieldsets)
         if TEST:
             for inline_admin_form in object:
                 for fieldset in inline_admin_form:
@@ -775,6 +796,7 @@ class ModelFormController(ModelController):
             formset = self.formset_class(self.request.POST, **kwargs)
         else:
             formset = self.formset_class(**kwargs)
+
         return formset 
 
     def get_inline_fk_name(self):
@@ -803,7 +825,7 @@ class ModelFormController(ModelController):
         """
         kwargs = {}
         if self.inline:
-            kwargs['fields'] = self.formset_field_names
+            kwargs['fields'] = self.inline_formset_field_names
             kwargs['extra']  = self.extra_formsets
             kwargs['can_delete'] = self.formset_deletable
             kwargs['can_order']  = self.orderable_formsets
@@ -811,7 +833,7 @@ class ModelFormController(ModelController):
             
             if self.inline_fk_name: # use the fk_name if any
                 kwargs['fk_name'] = self.inline_fk_name
-            
+
             return inlineformset_factory(self.inline.content_class,
                 self.content_class, **kwargs)
         else:

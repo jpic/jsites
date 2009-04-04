@@ -5,11 +5,21 @@
 {% block contents %}
 
 <table class="objectinfo">
-    {% for field in content_fields %}
+    {% for name, field in content_field_objects.items %}
     <tr>
-        <th>{{ field|capfirst }}</th>
+        <th>
+        {% if field.verbose_name %}
+            {{ field.verbose_name|capfirst }}
+        {% else %}
+            {% if field.field.verbose_name %}
+                {{ field.field.verbose_name|capfirst }}
+            {% else %}
+                {{ field|capfirst }}
+            {% endif %}
+        {% endif %}
+        </th>
         <td>
-            {{ field|model_prop:content_object }}
+            {{ name|model_prop:content_object }}
         </td>
     </tr>
     {% endfor %}
