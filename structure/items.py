@@ -50,7 +50,7 @@ def django_model_to_node_factory(model):
         instance = model
 
     result = Node(klass.__name__,
-        value = instance.pk
+        value = instance.pk,
         options = {
             'django_type': ('models.model'),
             'django_class': klass,

@@ -1,31 +1,31 @@
-TODO Sunday
-- 30 implement asmselect
-- 30 get constraints js config auto-discovered
-- 60 import secure storage backend
-- 60 implement ordering on search results
-- 45 add site views: login, register, logout, profile, change password
-- 60 add controller views: save search criterias, get mail when new results
-- 60 implement comments in details
-- 120 import carto data
-
-7.75 hours, count 10.
-
 Planning
 
-========= == =================================================================
-0.0alpha0 2H details view correctly displays any kind of field
-0.0alpha1 2H form view, create/edit urls, with url->field pre-population
-0.0alpha2 2H integration of search engine
-0.0alpha3 1H integration of javascript dependencies, offline tab support
-0.0alpha4 1H integration of jmenu for navigation
-0.0alpha5 4H integration of inlines, "just like in admin" (easy migration)
-0.0alpha6 4H make the views display structure configurable in python
-0.0alpha7 1H client side field level constraints support in controllers
-0.1alpha0 2H fix bugs while integrating to cp/mmm
-0.1alpha1 2H implement i18n, add english translation
-0.1alpha2 5H server-side field level constraints support
-0.1alpha3 3H subclass django.db.models.Model to reverse engineer controllers
-0.1alpha4 8H document interface driven development
-0.2alpha0 XX decouple DBAL
-0.2alpha1 XX implement with couchdb
-========= == =================================================================
+========= =================================================================
+0.0alpha0 details view correctly displays any kind of field
+0.0alpha1 form view, create/edit urls, with url->field pre-population
+0.0alpha2 integration of search engine
+0.0alpha3 integration of javascript dependencies, offline tab support
+0.0alpha4 integration of jmenu for navigation
+0.0alpha5 integration of inlines, "just like in admin" (easy migration)
+0.0alpha6 allow merging one formset with the content object form
+0.0alpha7 add asmselect widget
+0.0alpha8 get js ui mutation configurations set up
+0.0alpha9 add secure storage backend
+Start 3M integration
+0.1alpha0 implement ordering on search results
+0.1alpha1 subclass ControllerNode to Site (login, register, etc ...)
+0.1alpha2 add controller views: save search criterias, mail new results
+========= =================================================================
+
+Reminder: carto/mmm
+
+Later
+
+make the views display structure configurable in python
+client side field level constraints support in controllers
+implement i18n, add english translation
+server-side field level constraints support
+subclass django.db.models.Model to reverse engineer controllers
+document interface driven development, aka easy bucks howto
+decouple DBAL
+implement with couchdb
