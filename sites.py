@@ -95,15 +95,16 @@ class ControllerBase(jobject):
         if 'is_running' not in kwargs:
             self.is_running = False
 
+        # ask parent to set each kwarg as a property
+        super(ControllerBase, self).__init__(**kwargs)
+
         if self.inline:
             # reference to the "running" context
             self.request = self.inline.request
 
-        # backup kwargs for get_url:
+        # backup kwargs for get_url
+        #TODO blacklist request specific stuff be default (not hardcode)
         self.kwargs = kwargs
-
-        # ask parent to set each kwarg as a property
-        super(ControllerBase, self).__init__(**kwargs)
 
         # validate controller
         if not self._hasanyof(['content_class', 'name', 'urlname']):
@@ -120,7 +121,49 @@ class ControllerBase(jobject):
         # back up any variable to kwargs
         for kwarg in self.backup_kwargs:
             self.kwargs[kwarg] = getattr(self, kwarg)
+    
+    def get_permission(self, user=None, action_name=None, kwargs={}):
+        """
+        Wraps around check_permission.
+        """
+        if not self.is_running and not user and not action_name:
+            raise Exception("Not giving away a permission without action_name and user kwargs if not running")
 
+        if not action_name:
+            action_name = self.action_name
+        if not user:
+            user = self.request.user
+        if not kwargs:
+            kwargs = self.kwargs
+
+        return self.check_permission(user, action_name, kwargs)
+
+    def check_permission(self, user, action_name, kwargs):
+        """
+        This is what is supposed to be overloaded.
+        """
+        return True
+
+# {{{ navigation/menu
+    def get_menu_items(self):
+        items = {}
+
+        # try to add each action by default
+        for action_method_name in self.actions:
+            items[getattr(getattr(self, action_method_name), 'verbose_name').capitalize()] = self.get_action_url(action_method_name)
+
+        return items
+
+    def get_menu(self):
+        if self.parent:
+            return self.parent.menu
+
+        menu = menus.Menu()
+        # append a MenuItem for each menu_items to menus
+        for name, url in self.menu_items.items():
+            menu.add(name, url)
+        return menu
+# }}}
     # {{{ static/bootstrap: get_urls, instanciate, run.
     @classmethod
     def instanciate(self, **kwargs):
@@ -128,17 +171,19 @@ class ControllerBase(jobject):
 
     @classmethod
     def run(self, request, *args, **kwargs):
-        self = self.instanciate(is_running=True, **kwargs)
+        self = self.instanciate(is_running=True, request=request, **kwargs)
 
-        self.request = request
-        self.args = args
-        self.kwargs = kwargs
-       
+        # do permission check after setup, but before
+        # action call. This means you should not do
+        # any critical model update/deletion before self.action()
+        if not self.permission:
+            return http.HttpResponseForbidden()
+
         # Run the action
         # It can override anything that was set by run()
         response = self.action()
 
-        if response:
+        if isinstance(response, http.HttpResponse):
             return response
 
         return self.response
@@ -213,7 +258,7 @@ class ControllerBase(jobject):
     def add_to_context(self, name):
         self.context[name] = getattr(self, name)
     # }}}
-    # {{{ action, action_name
+    # {{{ action_url, action, action_name, action_method_name
     def get_action_method_name(self):
         if 'action_method_name' in self.kwargs:
             return self.kwargs['action_method_name']
@@ -228,6 +273,21 @@ class ControllerBase(jobject):
 
     def get_action(self):
         return getattr(self, self.action_name)
+
+    def get_action_url(self, action_name=None, kwargs=[]):
+        if not action_name:
+            if not self.is_running:
+                raise Exception("Not giving an action url, for the current action if none is actually running")
+
+            action_name = self.action_name
+
+        if self.parent:
+            prefix = "%s_%s_" % (self.parent.urlname, self.urlname)
+        else:
+            prefix = "%s_" % self.urlname
+
+        self.kwargs.update(kwargs)
+        return reverse(prefix+action_name, kwargs=kwargs)
     # }}}
     # {{{ template, response
     def get_template(self):
@@ -274,6 +334,11 @@ class ModelController(ControllerBase):
             return self.content_class(**self.fields_initial_values)
         return self.content_class()
     
+    def set_content_object(self, content_object):
+        self.content_object = content_object
+        self.content_class = content_object.__class__
+        self.content_id = content_object.pk
+
     def get_fields_initial_values(self):
         """
         Parse the request and finds key/values matching self.content_class
@@ -320,6 +385,11 @@ class ModelController(ControllerBase):
                 fields.append(field)
         return fields
 
+    def details(self):
+        self.add_to_context('content_object')
+        self.add_to_context('content_fields')
+    details = setopt(details, urlname='details', urlregex=r'^(?P<content_id>.+)/$', verbose_name='détails')
+
     def get_reverse_fk_fields(self):
         names = []
         for name in self.content_class._meta.get_all_field_names():
@@ -330,31 +400,19 @@ class ModelController(ControllerBase):
 
 class ModelFormController(ModelController):
     actions = ('create', 'list', 'edit', 'details')
-    # {{{ menu
-    def get_menu(self):
-        menu = menus.Menu()
-        controller = menu.add(self.content_class._meta.verbose_name)
-
-        if self.parent:
-            prefix = "%s_%s_" % (self.parent.urlname, self.urlname)
-        else:
-            prefix = "%s_" % self.urlname
-
+    # {{{ menu, get_action_url
+    def get_menu_items(self):
+        items = {}
         if self.is_running:
             if self.action_name == 'edit':
-                menu.add('details', reverse(prefix+'details', args=(self.content_id)))
+                items[self.edit.verbose_name] = self.get_action_url('details',  kwargs={'content_id': self.content_id})
             if self.action_name == 'details':
-                menu.add('edit', reverse(prefix+'edit', args=(self.content_id)))
+                items[self.edit.verbose_name] = self.get_action_url('edit',  kwargs={'content_id': self.content_id})
         
-        controller.add('list', reverse(prefix+'list'))
-        controller.add('create', reverse(prefix+'create'))
-        return menu
-    # }}}
-    # {{{ details
-    def details(self):
-        self.add_to_context('content_object')
-        self.add_to_context('content_fields')
-    details = setopt(details, urlname='details', urlregex=r'^(?P<content_id>.+)/$')
+        items[self.list.verbose_name] = self.get_action_url('list')
+        items[self.create.verbose_name] = self.get_action_url('create')
+
+        return items
     # }}}
     # {{{ forms
     def get_use(self):
@@ -366,26 +424,37 @@ class ModelFormController(ModelController):
 
     def forms(self):
         if self.request.method == 'POST':
-            valid = False
+            form_valid = False
+            formsets_valid = False
+
             if self.form_object.is_valid():
-                valid = True
+                form_valid = True
+                self.save_form()
+
+                # set to true before elimination tests
+                formsets_valid = True
                 for formset in self.formset_objects:
                     if not formset.is_valid():
-                        valid = False
-            if valid:
-                self.save_form()
+                        formsets_valid = False
+
+            if form_valid and formsets_valid:
                 self.save_formsets()
-        
+                return http.HttpResponseRedirect(self.get_action_url('details',kwargs={'content_id': self.content_id}))
+            elif form_valid:
+                return http.HttpResponseRedirect(self.get_action_url('edit',kwargs={'content_id': self.content_id}))
+
         # admin js deps (like jquery for jsites)
         if 'adminform_object' in self.use \
             or 'adminformset_objects' in self.use:
             core = settings.ADMIN_MEDIA_PREFIX+'js/core.js'
             i18n = settings.JSITES_MEDIA_PREFIX+'js/admin.jsi18n.js'
             self.media.add_js([core, i18n])
+
         # don't leave out any form/formset object media
         self.media += self.form_object.media
         for formset_object in self.formset_objects:
             self.media += formset_object.media
+
         # allow template overload per controller-urlname/action
         self.template = [
             'jsites/%s/forms.html' % self.urlname,
@@ -418,14 +487,15 @@ class ModelFormController(ModelController):
 
     def edit(self):
         return self.forms()
-    edit = setopt(edit, urlname='edit', urlregex=r'^edit/(?P<content_id>.+)/$')
+    edit = setopt(edit, urlname='edit', urlregex=r'^edit/(?P<content_id>.+)/$', verbose_name='modifier')
 
     def create(self):
         return self.forms()
-    create = setopt(create, urlname='create', urlregex=r'^create/$')
+    create = setopt(create, urlname='create', urlregex=r'^create/$', verbose_name='créer (nouveau)')
 
     def save_form(self):
-        self.model = self.form_object.save()
+        #TODO implement __setattr__
+        self.set_content_object(self.form_object.save())
 
     def get_form_class(self):
         """
@@ -521,14 +591,17 @@ class ModelFormController(ModelController):
         # figure what model we want an inline from
         related = self.content_class._meta.get_field_by_name(prop)[0].model
         # rely on the parent to get the controller class we want
-        controller_object = self.parent.get_controllers_for_content_class(related)
-        # fire it as an inline of this controller
-        controller_object.inline = self
+        controller_class = self.parent.get_controller_classes_for_content_class(related)
+        # fire it as an inline of this controller, making sure we pass
+        # the correct content_class: the related object we want
+        controller_object = controller_class.instanciate(inline=self, content_class=related)
         # get the object we want
+        # run the getter: because this is a factory method,
+        # and because else it won't know about the request!
         if admin:
-            object = controller_object.admin_formset_object
+            object = controller_object.get_admin_formset_object()
         else:
-            object = controller_object.formset_object
+            object = controller_object.get_formset_object()
         return object
 
     def get_admin_inline_options(self):
@@ -559,7 +632,7 @@ class ModelFormController(ModelController):
     def get_formset_objects(self):
         return self.formset_objects_factory(False)
 
-    def get_formset_object(self):
+    def get_formset_object(self, kwargs = {}):
         """
         Return a formset object.
 
@@ -569,7 +642,6 @@ class ModelFormController(ModelController):
         Uses self.formset_fields or self.inline_formset_fields, if called by an
         a controller as inline.
         """
-        kwargs = {}
         if self.inline:
             kwargs['instance'] = self.inline.content_object
             # Also copy the request, as we want the other controller
@@ -633,7 +705,7 @@ class ModelFormController(ModelController):
         self.add_to_context('search_engine')
         self.add_to_context('content_class')
         self.add_to_context('content_fields')
-    list = setopt(list, urlname='list', urlregex=r'^$')
+    list = setopt(list, urlname='list', urlregex=r'^$', verbose_name='liste')
     # }}}i
 
 class StructureController(ModelFormController):
@@ -666,10 +738,15 @@ class ControllerNode(ControllerBase):
         self._registry = {} # controller.name -> controller instance
         self._content_class_registry = {} # content_class -> controller instance
         super(ControllerNode, self).__init__(**kwargs)
+
     def get_menu(self):
-        menu = menus.Menu()
+        items = {self.name: {}}
+
         for controller in self._registry.values():
-            menu += controller.get_menu()
+            items[self.name.capitalize()][controller.name.capitalize()] = controller.menu_items
+
+        menu = menus.MenuFactories(items).menu
+
         return menu
 
     @classmethod
@@ -731,6 +808,15 @@ class ControllerNode(ControllerBase):
         controller = self._content_class_registry[content_class]
         del self._content_class_registry[content_class]
         del self._registry[controller.urlname]
+
+    def get_controller_classes_for_content_class(self, content_class):
+        """
+        The trick allowing to use several controllers per model: use two registries.
+        """
+        if not content_class in self._content_class_registry:
+            raise Exception('No controllers registered for content_class' % content_class)
+
+        return self._content_class_registry[content_class].__class__
 
     def get_controllers_for_content_class(self, content_class):
         """
@@ -805,4 +891,10 @@ class ControllerNode(ControllerBase):
                 print urlname, "CTRLS", node['controllers']
                 for urlname, controller in node['controllers'].items():
                     print urlname, "CTRL", controller, controller.root_url()
-    index = setopt(index, urlregex=r'^$', urlname='index')
+    index = setopt(index, urlregex=r'^$', urlname='index', verbose_name='accueil')
+
+
+"""
+I know it wasn't the job of the controller to do all that. The only point of all this magic is to keep *just* sites configurationns all at one place,
+In reality, i'm convinced that a well architectured framework should be built upon a tree configuration of sites with menus, actions configuration (url, callback, name, verbose name), and so on. That's for version 1, be in python, php whatever that's what i beleive a one-man-army it consultant needs.
+"""
