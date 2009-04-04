@@ -517,9 +517,6 @@ class ModelFormController(ModelController):
             'jsites/forms.html',
         ]
 
-        # make sure that any field_names_for_merged_formsets won't be
-        # added to the context as a regular formset
-
         # figure context
         if not 'adminform_object' in self.use:
             self.add_to_context('form_object')
