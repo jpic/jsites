@@ -2,6 +2,7 @@ from django import template
 register = template.Library()
 from copy import deepcopy
 from django.utils.safestring import mark_safe
+from django.db.models.fields import related
 
 @register.filter
 def class_prop(value, arg):
@@ -19,7 +20,7 @@ def keyvalue(value, arg):
 def prop(value, arg):
     object = arg
     prop = value
-    return getattr(object, prop)
+    return getattr(object, prop, None)
 
 @register.filter
 def model_prop(value, arg):
@@ -27,26 +28,34 @@ def model_prop(value, arg):
     prop = value
 
     field = object._meta.get_field_by_name(prop)[0]
-    value = getattr(object, prop)
 
     if hasattr(field, 'rst'):
+        value = getattr(object, prop)
         from docutils import core
         parts = core.publish_parts(source=unicode(value),
                                    writer_name='html4css1')
         return mark_safe(parts['fragment'])
 
+    # class defined in another class method: can't import it, zen.
     if field.__class__.__name__ == 'ManyRelatedManager' \
-        or field.__class__.__name__ == 'RelatedObject':
-        if not getattr(object, prop).count():
+        or isinstance(field, related.RelatedObject):
+        try:
+            count = getattr(object, prop).count()
+        except Exception:
+            prop = prop + '_set'
+            count = getattr(object, prop).count()
+
+        if not count:
             return '0'
-        
+
         html = '<ul>'
         for value in getattr(object, prop).all():
             html += '<li>%s</li>' % (value,)
         html += '</ul>'
         return mark_safe(html)
 
-    return getattr(object, prop)
+    value = getattr(object, prop)
+    return value
 
 @register.filter
 def verbose_name(value):
