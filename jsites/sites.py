@@ -760,6 +760,8 @@ class ModelFormController(ModelController):
             kwargs['widget'] = admin_widgets.AdminDateTimeWidget
         elif isinstance(dbfield, fields.TimeField):
             kwargs['widget'] = admin_widgets.AdminTimeWidget
+        elif isinstance(dbfield, related.ManyToManyField):
+            kwargs['widget'] = widgets.AsmSelect
 
         if self.action_name == 'list':
             kwargs['required'] = False
