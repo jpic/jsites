@@ -45,11 +45,23 @@
         jpicTabManager.parseDivTabs();
         ui.parseTabManager();
         ui.writeTabs($('#tabs'));
-        ui.update();
+
+        function uiupdate() {
+        {% block uiupdate %}
+            ui.update();
+        {% endblock uiupdate %}
+        }
+
+        {% block constraints %}
+            {% for constraint in constraints %}
+            {{ constraint.render }}
+            {% endfor %}
+        {% endblock constraints %}
 
         for (tab in jpicTabManager.fieldsets) break
 
         jpicTabManager.select(tab);
+        uiupdate();
         {% endblock ui %}
         });
     });

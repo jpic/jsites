@@ -31,6 +31,9 @@ class TicketController(jsites.ModelFormController):
             ('price', 'workflow_status',),
         )}),
     )
+    constraints = (
+        jsites.Constraint(('creator', 'owner'), 'title', 'foo'),
+    )
     #structure_class = TicketNode
 
 staff.unregister_controller_for_content_class(models.Ticket)

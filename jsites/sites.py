@@ -16,6 +16,7 @@ from django.core.urlresolvers import reverse
 ERROR_MESSAGE = ugettext_lazy("Please enter a correct username and password. Note that both fields are case-sensitive.")
 LOGIN_FORM_KEY = 'this_is_the_login_form'
 
+from django.utils.safestring import mark_safe
 from django import forms
 from jadmin import menus
 from django.forms.models import modelform_factory, inlineformset_factory, modelformset_factory
@@ -50,6 +51,37 @@ def setopt(func, *args, **kwargs): # {{{
 # this is only to make template crashes happen before django template
 # takes the relay, making crashes debugable Werkzeug debugger
 TEST=True
+
+class Constraint(object):
+    def __init__(self, slaves, master, values, jsclass='jpicFieldValueNotEqual'):
+        self.slaves = slaves
+        self.master = master
+        self.values = values
+        self.jsclass = jsclass
+
+    def render(self):
+        js = "ui.addConstraint("
+        if hasattr(self.slaves, '__iter__'):
+            js += "["
+            for slave in self.slaves:
+                js += "'%s'," % slave
+            js += "],"
+        else:
+            js += "'%s'," % self.slaves
+
+        js += "'%s'," % self.master
+        if hasattr(self.values, '__iter__'):
+            js += "["
+            for value in self.values:
+                js += "'%s'," % value
+            js += "],"
+        else:
+            js += "'%s'" % self.values
+        if self.jsclass:
+            js += ", %s" % self.jsclass
+        js += ");\n"
+        js += "$('#id_%s').change(uiupdate);" % self.master
+        return mark_safe(js)
 
 class jSiteForm(helpers.AdminForm):
     def __init__(self, form, merge_formset_objects, *args):
@@ -318,6 +350,7 @@ class ControllerBase(jobject):
             'admin.urlify.js',
             'jquery.min.js',
             'jquerycssmenu.js',
+            'php.min.js',
         )
         css = {
             'all': ('jquerycssmenu.css', 'style.css'),
@@ -354,6 +387,10 @@ class ControllerBase(jobject):
             context['menu'] = self.parent.menu
         else:
             context['menu'] = self.menu
+
+        if self._has('constraints'):
+            context['constraints'] = self.constraints
+
         return context
 
     def add_to_context(self, name):
