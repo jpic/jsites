@@ -196,12 +196,12 @@ var jpicField = function(name) {
 jpicField.prototype.assert = assert;
 jpicField.prototype.getValue = function() {
     // support for autocomplete snippets
-    if ($('#lookup_'+this.name).val())
+    if ($('#lookup_'+this.name).length)
     {
         return $('#lookup_'+this.name).val();
     }
 
-    if ($('#' + this.id).children(':selected'))
+    if ($('#' + this.id + '[type=select]').length)
     {
         var text = $('#' + this.id).children(':selected').text();
         if ($('#' + this.id).val())
@@ -215,7 +215,15 @@ jpicField.prototype.getValue = function() {
         return this.value;
     }
 
-    this.value = $('#' + this.id).val();
+    if ($('#' + this.id).length)
+    {
+        this.value = $('#' + this.id).val();
+    }
+    else
+    {
+        console.error('Cannot find value for ' + this.id);
+    }
+
     return this.value;
 };
 jpicField.prototype.show = function() {
@@ -572,6 +580,9 @@ var jpicFieldValueNotEqual = function(field, value) {
     this.verbose = this.field.name + ' ' + this.verb  + ' ' + this.value;
 };
 jpicFieldValueNotEqual.prototype.assert = function() {
+    this.verbose = this.field.name + ' ' + this.verb  + ' ' + this.value;
+    this.verbose+= ' actually equal to "'+this.field.getValue()+'"';
+
     if (this.field.getValue() == this.value)
     {
         return false;
