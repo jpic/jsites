@@ -587,7 +587,52 @@ class ModelController(ControllerBase):
         return required
 
 class ModelFormController(ModelController):
-    actions = ('create', 'list', 'edit', 'details', 'delete')
+    actions = ('create', 'list', 'edit', 'details', 'delete', 'autocomplete')
+
+    def get_search_field_names(self):
+        """
+        Returns a list of fields allowed to search on.
+        """
+        names = []
+        for object in self.content_field_objects:
+            if isinstance(object, fields.CharField):
+                names.append(object.name)
+        return names
+
+    def autocomplete(self):
+        import operator
+        from django.db.models.query import QuerySet
+        from django.db import models
+        from django.utils.encoding import smart_str
+
+        query = self.request.GET.get('q', '')
+
+        def construct_search(field_name):
+            # use different lookup methods depending on the notation
+            if field_name.startswith('^'):
+                return "%s__istartswith" % field_name[1:]
+            elif field_name.startswith('='):
+                return "%s__iexact" % field_name[1:]
+            elif field_name.startswith('@'):
+                return "%s__search" % field_name[1:]
+            else:
+                return "%s__icontains" % field_name
+
+        qs = self.queryset
+        for bit in query.split():
+            or_queries = [models.Q(**{construct_search(
+                smart_str(field_name)): smart_str(bit)})
+                    for field_name in self.search_field_names]
+
+            other_qs = QuerySet(self.content_class)
+            other_qs.dup_select_related(qs)
+            if or_queries:
+                other_qs = other_qs.filter(reduce(operator.or_, or_queries))
+            qs = qs & other_qs
+        data = ''.join([u'%s|%s\n' % (f.__unicode__(), f.pk) for f in qs])
+        return http.HttpResponse(data)
+    autocomplete = setopt(autocomplete, urlname='autocomplete', urlregex=r'^autocomplete')
+
     def delete(self):
         raise NotImplemented()
     delete = setopt(delete, urlname='delete', urlregex=r'^delete/(?P<content_id>.+)/$', verbose_name=u'éffacer')
@@ -784,6 +829,13 @@ class ModelFormController(ModelController):
         """ List of field instances to use for self.form_class """
         return self.field_names_to_objects(self.form_field_names)
 
+    def get_multchoice_field_kwargs(self, kwargs={}):
+        kwargs['widget'] = widgets.AsmSelect
+        return kwargs
+    def get_choice_field_kwargs(self, kwargs={}):
+        kwargs['widget'] = widgets.ForeignKeySearchInput(autocomplete_url=self.get_action_url('autocomplete'))
+        return kwargs
+
     def formfield_for_dbfield(self, dbfield):
         """
         Default formfield for db field callback to use in our form generators.
@@ -797,8 +849,17 @@ class ModelFormController(ModelController):
             kwargs['widget'] = admin_widgets.AdminDateTimeWidget
         elif isinstance(dbfield, fields.TimeField):
             kwargs['widget'] = admin_widgets.AdminTimeWidget
-        elif isinstance(dbfield, related.ManyToManyField):
-            kwargs['widget'] = widgets.AsmSelect
+        # delegate to the appropriate controller,
+        # if possible, the creation of this formfield
+        elif isinstance(dbfield, (related.ManyToManyField, related.ForeignKey)):
+            # get the controller
+            # fire as inline of self, with rel
+            controller_object = self.content_class_controller_object(dbfield.rel.to)
+            # get the multichoice field
+            if isinstance(dbfield, related.ManyToManyField):
+                kwargs.update(controller_object.multchoice_field_kwargs)
+            else:
+                kwargs.update(controller_object.choice_field_kwargs)
 
         if self.action_name == 'list':
             kwargs['required'] = False
@@ -847,16 +908,33 @@ class ModelFormController(ModelController):
             objects[name] = self.formset_object_factory(field, admin)
         return objects
 
+    def content_class_controller_class(self, content_class):
+        if not self.parent:
+            raise Exception('Nowhere to search.')
+
+        # search parent first
+        controller_class = self.parent.get_controller_classes_for_content_class(content_class)
+        return controller_class
+
+    def content_class_controller_object(self, content_class, inline=True, **kwargs):
+        controller_class = self.content_class_controller_class(content_class)
+
+        kwargs['content_class'] = content_class
+    
+        if inline is True:
+            kwargs['inline'] = self
+
+        if self.parent:
+            kwargs['parent'] = self.parent
+
+        return controller_class.instanciate(**kwargs)
+
     def formset_object_factory(self, prop, admin):
         # figure what model we want an inline from
         related = prop.model
-        # rely on the parent to get the controller class we want
-        controller_class = self.parent.get_controller_classes_for_content_class(related)
-        # fire it as an inline of this controller, making sure we pass
-        # the correct content_class: the related object we want
+
+        # set the fk name
         kwargs = {
-            'inline': self,
-            'content_class': related,
             'inline_fk_name': prop.field.name
         }
 
@@ -866,7 +944,7 @@ class ModelFormController(ModelController):
             kwargs['max_formsets_number'] = 1
             kwargs['formset_deletable'] = False
 
-        controller_object = controller_class.instanciate(**kwargs)
+        controller_object = self.content_class_controller_object(**kwargs)
 
         # get the object we want
         # run the getter: because this is a factory method,
@@ -1095,7 +1173,7 @@ class ModelFormController(ModelController):
         engine = jsearch.ModelSearch(
             model_class = self.content_class,
             queryset = self.queryset,
-            search_fields = self.list_columns,
+            search_field_names = self.list_columns,
             form_class = self.form_class
         )
         return engine
@@ -1224,7 +1302,7 @@ class ControllerNode(ControllerBase):
         The trick allowing to use several controllers per model: use two registries.
         """
         if not content_class in self._content_class_registry:
-            raise Exception('No controllers registered for content_class' % content_class)
+            raise Exception('No controllers registered for content_class %s' % content_class)
 
         return self._content_class_registry[content_class].__class__
 
