@@ -1209,6 +1209,10 @@ class ModelFormController(ModelController):
     list = setopt(list, urlname='list', urlregex=r'^$', verbose_name=u'liste')
     # }}}
 
+class AbstractController(ModelFormController):
+    menu_items = {}
+    urls = ()
+
 class StructureController(ModelFormController):
     def get_structure_object(self):
         return self.structure_class()
@@ -1279,6 +1283,20 @@ class ControllerNode(ControllerBase):
         crud = ModelFormController
         object = crud(content_class=content_class, parent=self, **kwargs)
         self.register(object)
+
+    def re_register_controller_for_content_class(self, content_class, controller):
+        self.unregister_controller_for_content_class(content_class)
+        self.register(controller)
+
+    def register_abstract_content_class(self, content_class, force=False, **kwargs):
+        controller_class = AbstractController
+        self.register_content_class_controller_class(content_class, controller_class, force, **kwargs)
+ 
+    def register_content_class_controller_class(self, content_class, controller_class, force=False, **kwargs):
+        self.unregister_controller_for_content_class(content_class)
+        kwargs['content_class'] = content_class
+        controller_object = controller_class(**kwargs)
+        self.register(controller_object)
 
     def register(self, controller):
         """
