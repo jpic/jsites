@@ -473,8 +473,17 @@ class ModelController(ControllerBase):
         return None
 
     def get_content_field_names(self):
-        """ Return all field names for content class. """
-        return self.content_class._meta.get_all_field_names()
+        """ Return all field names for content class, that are not auto created """
+        names = []
+        for name in self.content_class._meta.get_all_field_names():
+            f = self.content_class._meta.get_field_by_name(name)[0]
+            if not hasattr(f, 'auto_created') or not f.auto_created:
+                names.append(name)
+
+        for field in self.content_class._meta.many_to_many:
+            names.append(field.name)
+
+        return names
 
     def get_content_field_objects(self):
         """ Field instances for content_field_names. """
@@ -487,8 +496,11 @@ class ModelController(ControllerBase):
         """
         names = []
         for field in self.content_class._meta.fields:
-            if not isinstance(field, (fields.AutoField, related.RelatedObject)):
-                names.append(field.name)
+            if hasattr(field, 'auto_created') and field.auto_created:
+                continue
+            if isinstance(field, (fields.AutoField, related.RelatedObject)):
+                continue
+            names.append(field.name)
         
         for field in self.content_class._meta.many_to_many:
             names.append(field.name)
