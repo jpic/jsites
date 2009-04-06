@@ -222,6 +222,10 @@ class ControllerBase(jobject):
         """ Checks if a user can request an action with specified kwargs """
         return True
 
+    def get_loader(self):
+        """ Return true if you need a loader """
+        return True
+
 # {{{ navigation/menu
     def get_menu_items(self):
         """
@@ -390,6 +394,8 @@ class ControllerBase(jobject):
 
         if self._has('constraints'):
             context['constraints'] = self.constraints
+
+        context['loader'] = self.loader
 
         return context
 

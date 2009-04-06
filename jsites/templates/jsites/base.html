@@ -25,6 +25,12 @@
     {{ media }}
     {% endblock media %}
     <script type="text/javascript">
+    {% if loader %}
+        /* getElementById('page').style.display = 'none';
+        getElementById('page').style.display = 'block'; */
+        $('#page').hide();
+        $('#loader').show();
+    {% endif %}
     {% block extrascript %}
     {% endblock extrascript %}
     {% block jsbase %}
@@ -64,6 +70,10 @@
         uiupdate();
         {% endblock ui %}
         });
+        {% if loader %}
+        $('#page').show();
+        $('#loading').hide();
+        {% endif %}
     });
     {% endblock jsbase %}
     </script>
@@ -107,6 +117,10 @@
         <div id="footer">
         </div>
     </div>
+
+<div id="loading" style="display: none;">
+{% include "jsites/loading.html" %}
+</div>
 
 {% if debug and request.user.is_staff %}
 <div id="debug">
