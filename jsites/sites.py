@@ -756,6 +756,8 @@ class ModelFormController(ModelController):
         Actually, we use our own set of helpers to support formsets
         as well.
         """
+        for fieldset in self.fieldsets:
+            print "FS", fieldset
         adminform_object = jSiteForm(self.form_object,
             self.merge_formset_objects, self.fieldsets,
             self.prepopulated_fields)
@@ -948,21 +950,27 @@ class ModelFormController(ModelController):
         return controller_class.instanciate(**kwargs)
 
     def formset_object_factory(self, prop, admin):
-        # figure what model we want an inline from
-        related = prop.model
+        kwargs = {}
 
-        # set the fk name
-        kwargs = {
-            'inline_fk_name': prop.field.name
-        }
+        # figure what model we want an inline from
+        if hasattr(prop, 'model'):
+            related = prop.model
+            kwargs['inline_fk_name'] = prop.field.name
+            rel = prop.field.rel
+        elif hasattr(prop, 'rel') and hasattr(prop.rel, 'to'):
+            # fk is in self.content_class, don't pass fk_name
+            related = prop.rel.to
+            rel = prop.rel
+        else:
+            raise Exception('Cannot figure what model to formmset')
 
         # make sure it won't give more than one formset_object in
         # this special case
-        if prop.field.rel.related_name in self.field_names_for_formsets:
+        if rel.related_name in self.field_names_for_formsets:
             kwargs['max_formsets_number'] = 1
             kwargs['formset_deletable'] = False
 
-        controller_object = self.content_class_controller_object(**kwargs)
+        controller_object = self.content_class_controller_object(related, **kwargs)
 
         # get the object we want
         # run the getter: because this is a factory method,
@@ -1129,7 +1137,6 @@ class ModelFormController(ModelController):
         """
         return self.reverse_fk_field_names
 
-
     def get_field_objects_for_formsets(self):
         """
         Return field objects for self.field_names_for_formsets.
@@ -1191,7 +1198,7 @@ class ModelFormController(ModelController):
         engine = jsearch.ModelSearch(
             model_class = self.content_class,
             queryset = self.queryset,
-            search_field_names = self.list_columns,
+            search_fields = self.list_columns,
             form_class = self.form_class
         )
         return engine
@@ -1248,7 +1255,11 @@ class ControllerNode(ControllerBase):
         items = {self.name: {}}
 
         for controller in self._registry.values():
-            items[unicode(self.name.capitalize())][unicode(controller.name.capitalize())] = controller.menu_items
+            vname = unicode(self.name.capitalize())
+            if vname not in items:
+                items[vname] = {}
+            cvname = unicode(controller.name.capitalize())
+            items[vname][cvname] = controller.menu_items
 
         menu = menus.MenuFactories(items).menu
 
@@ -1399,6 +1410,8 @@ class ControllerNode(ControllerBase):
                     print urlname, "CTRL", controller, controller.root_url()
     index = setopt(index, urlregex=r'^$', urlname='index', verbose_name=u'accueil')
 
+class Site(ControllerNode):
+    pass
 
 """
 I know it wasn't the job of the controller to do all that. The only point of all this magic is to keep *just* sites configurationns all at one place,
