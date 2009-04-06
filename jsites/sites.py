@@ -74,7 +74,7 @@ class Constraint(object):
             js += "["
             for value in self.values:
                 js += "'%s'," % value
-            js += "],"
+            js += "]"
         else:
             js += "'%s'" % self.values
         if self.jsclass:
