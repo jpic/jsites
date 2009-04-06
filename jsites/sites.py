@@ -950,27 +950,17 @@ class ModelFormController(ModelController):
         return controller_class.instanciate(**kwargs)
 
     def formset_object_factory(self, prop, admin):
-        kwargs = {}
-
-        # figure what model we want an inline from
-        if hasattr(prop, 'model'):
-            related = prop.model
-            kwargs['inline_fk_name'] = prop.field.name
-            rel = prop.field.rel
-        elif hasattr(prop, 'rel') and hasattr(prop.rel, 'to'):
-            # fk is in self.content_class, don't pass fk_name
-            related = prop.rel.to
-            rel = prop.rel
-        else:
-            raise Exception('Cannot figure what model to formmset')
+        kwargs = {
+             'inline_fk_name': prop.field.name,
+        }
 
         # make sure it won't give more than one formset_object in
         # this special case
-        if rel.related_name in self.field_names_for_formsets:
+        if prop.field.rel.related_name in self.field_names_for_formsets:
             kwargs['max_formsets_number'] = 1
             kwargs['formset_deletable'] = False
 
-        controller_object = self.content_class_controller_object(related, **kwargs)
+        controller_object = self.content_class_controller_object(prop.model, **kwargs)
 
         # get the object we want
         # run the getter: because this is a factory method,
