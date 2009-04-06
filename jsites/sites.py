@@ -1253,7 +1253,8 @@ class ControllerNode(ControllerBase):
             if vname not in items:
                 items[vname] = {}
             cvname = unicode(controller.name.capitalize())
-            items[vname][cvname] = controller.menu_items
+            if controller.menu_items:
+                items[vname][cvname] = controller.menu_items
 
         menu = menus.MenuFactories(items).menu
 
