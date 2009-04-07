@@ -490,9 +490,14 @@ class ModelController(ControllerBase):
         """
         Returns a list field names that are defined in the content class
         itself and are not auto fields.
+
+        All field names not in self.content_field_names will not be added
+        for security.
         """
         names = []
         for field in self.content_class._meta.fields:
+            if field.name not in self.content_field_names:
+                continue
             if hasattr(field, 'auto_created') and field.auto_created:
                 continue
             if isinstance(field, (fields.AutoField, related.RelatedObject)):
@@ -500,7 +505,8 @@ class ModelController(ControllerBase):
             names.append(field.name)
         
         for field in self.content_class._meta.many_to_many:
-            names.append(field.name)
+            if field.name in self.content_field_names:
+                names.append(field.name)
 
         return names
 
