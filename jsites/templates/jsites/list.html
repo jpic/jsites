@@ -13,16 +13,24 @@
         <thead>
             <tr>
             {% for name, field in content_field_objects.items %}
+                <th>
                 {% if field.verbose_name %}
-                <th>{{ field.verbose_name|capfirst }}</th>
+                {{ field.verbose_name|capfirst }}
                 {% else %}
-                <th>{{ name|capfirst }}</th>
+                {{ name|capfirst }}
                 {% endif %}
+                <a class="{% ifequal name order_field %}{% ifequal order_type 'asc' %}selected{% endifequal %}{% endifequal %}">
+                 |
+                </a>
+                <a class="{% ifequal name order_field %}{% ifequal order_type 'desc' %}selected{% endifequal %}{% endifequal %}">
+                _
+                </a>
+                </th>
             {% endfor %}
             </tr>
         </thead>
         <tbody>
-        {% for object in search_engine.filter_queryset.all %}
+        {% for object in search_engine_object.filter_queryset.all %}
             <tr>
                 {% for field in content_field_objects.keys %}
                 <td>
