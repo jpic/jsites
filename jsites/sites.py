@@ -1186,26 +1186,37 @@ class ModelFormController(ModelController):
         return self.field_names_to_objects(self.inline_formset_field_names)
 
     # {{{ search/list view
-    def get_search_engine(self):
+    def get_search_engine_object(self):
         import jsearch
         engine = jsearch.ModelSearch(
             model_class = self.content_class,
             queryset = self.queryset,
-            search_fields = self.list_columns,
+            search_fields = self.search_field_names,
             form_class = self.form_class
         )
         return engine
 
-    def get_list_columns(self):
+    def get_search_field_names(self):
+        return self.list_field_names
+
+    def get_search_field_objects(self):
+        return self.field_names_to_objects(self.search_field_objects)
+
+    def get_list_field_names(self):
         return self.form_field_names
+
+    def get_list_field_objects(self):
+        return self.field_names_to_objects(self.list_field_names)
 
     def get_queryset(self):
         return self.content_class.objects.select_related()
 
     def list(self):
-        self.search_engine.parse_request(self.request)
-        self.add_to_context('search_engine')
+        self.search_engine_object.parse_request(self.request)
+        self.add_to_context('search_engine_object')
         self.add_to_context('content_class')
+        self.context['content_field_names'] = self.list_field_names
+        self.context['content_field_objects'] = self.list_field_objects
         self.add_to_context('content_field_names')
         self.add_to_context('content_field_objects')
         # additionnal fancey links
