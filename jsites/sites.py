@@ -1330,8 +1330,9 @@ class ControllerNode(ControllerBase):
         for later re-instanciation.
         """
         if isinstance(controller, type):
-            if settings.DEBUG and not self.__class__.warned:
-                print """Notice: register() converted controller class to instance
+            if settings.DEBUG:
+                if not self.__class__.warned:
+                    print """Notice: register() converted controller class to instance
     Apparently, you're new to jsites. The differences between jsites and admin/databrowse registries are:
     - instances are registered, its the job of the controller instance get_urls() to pass static call to run() to urls.url(),
     - you can work with instances in your sites definition,
@@ -1340,7 +1341,7 @@ class ControllerNode(ControllerBase):
     You will notice that several controllers per model or several instances of the same controller class is planned to be supported,
     but it won't let you fine-tune formsets, because _content_class_registry only does register one controller per content_class, ATM.
 """
-            self.__class__.warned = True
+                self.__class__.warned = True
             controller = controller()
 
         for registered_controller in self._registry.values():
