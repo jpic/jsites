@@ -247,13 +247,10 @@ class ControllerBase(jobject):
         """ Append all menu items to the parent menu, or a new menu instance """
         if self.parent:
             return self.parent.menu
+        else:
+            menu = menus.Menu()
 
-        menu = menus.Menu()
-        # append a MenuItem for each menu_items to menus
-        for name, url in self.menu_items.items():
-            menu.add(name, url)
-
-        return menu
+        return menus.MenuFactories(self.menu_items, menu).menu
 # }}}
     # {{{ static/bootstrap: get_urls, instanciate, run.
     @classmethod
@@ -1239,14 +1236,22 @@ class ControllerNode(ControllerBase):
     instances = {}
     warned = False
     def __init__(self, **kwargs):
-        # has a registry: is a singleton
-        self.__class__.instance = self
+        """
+        Never, ever call this method. Or you'll just fail at pretty much everything.
+
+        Use the classmethod instanciate() which takes care of its
+        singleton registry.
+        """
         self._registry = {} # controller.name -> controller instance
         self._content_class_registry = {} # content_class -> controller instance
         super(ControllerNode, self).__init__(**kwargs)
 
     def get_menu(self):
-        items = {self.name: {}}
+        menu = super(ControllerNode, self).get_menu()
+        return menu
+
+    def get_menu_items(self):
+        items = {}
 
         for controller in self._registry.values():
             vname = unicode(self.name.capitalize())
@@ -1256,9 +1261,8 @@ class ControllerNode(ControllerBase):
             if controller.menu_items:
                 items[vname][cvname] = controller.menu_items
 
-        menu = menus.MenuFactories(items).menu
-
-        return menu
+        print 'got?', items.keys()
+        return items
 
     @classmethod
     def factory(self, app_name, **kwargs):
@@ -1384,6 +1388,14 @@ class ControllerNode(ControllerBase):
     @classmethod
     # singleton, for the registry
     def instanciate(self, **kwargs):
+        """
+        This is the reason why our pattern is not a complete failure.
+
+        Don't __init__() without going through instanciate, please, save
+        yourself some stress.
+
+        print "Thanks for calling me instead of failing!"
+        """
         if not 'urlname' in kwargs:
             raise Exception('Singletonning needs "urlname" in kwargs')
 

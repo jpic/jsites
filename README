@@ -1,3 +1,9 @@
+Don't
+=====
+
+Do not ever instanciate a ControllerNode/Site without going through the
+class method instanciate().
+
 Planning
 
 ========== =================================================================
