@@ -27,7 +27,7 @@ import jsites
 import widgets
 from django.contrib.admin import helpers
 from django.contrib.admin import widgets as admin_widgets
-from ppv import jobject
+import ppv
 from structure import items
 # }}}
 # {{{ Exceptions
@@ -158,7 +158,7 @@ class UnnamedControllerException(Exception):
         msg = "Need either name or urlname or content_class in either: class attributes, Controller constructor arguments or Controller instance"
         super(UnnamedControllerException, self).__init__(msg)
 
-class ControllerBase(jobject):
+class ControllerBase(ppv.jobject):
     def __init__(self, **kwargs):
         """
         If a controller should pass itself to controllers it invokes as
