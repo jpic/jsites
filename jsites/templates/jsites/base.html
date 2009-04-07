@@ -64,9 +64,10 @@
             {% endfor %}
         {% endblock constraints %}
 
+        var tab = false;
         for (tab in jpicTabManager.fieldsets) break
+        if (tab) jpicTabManager.select(tab);
 
-        jpicTabManager.select(tab);
         uiupdate();
         {% endblock ui %}
         });
