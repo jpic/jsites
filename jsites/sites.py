@@ -374,8 +374,42 @@ class ControllerBase(ppv.jobject):
         )
     def get_media_overload(self):
         return None
+
     def get_media(self):
-        return media_converter(self._media, self.additionnal_js, self.additionnal_css, self.media_overload, '/' + self.urlname + '/')
+        js = []
+        for src in self._media.js + self.additionnal_js:
+            if src[0] == '/':
+                js.append(src)
+            else:
+                js.append('%sjs/%s' % (settings.JSITES_MEDIA_PREFIX, src))
+        
+        css={}
+        for type in self._media.css:
+            css[type] = []
+            current_type = self._media.css[type]
+
+            if type in self.additionnal_css:
+                current_type += additionnal_css[type]
+
+            for src in current_type:
+                if src[0] == '/': # allow absolute
+                    css[type].append(src)
+                    continue
+
+                # prepend css/
+                src = '%s/%s' % ('css', src)
+
+                # check if overloadable
+                overload = self.media_overload
+                test = os.path.join(overload[0], src)
+                if os.path.exists(test):
+                    uri = '/' + os.path.join(self.urlname, overload[1], src)
+                else: # or use default
+                    uri = '/' + os.path.join(self.urlname, 'jsites', 'media', src)
+                css[type].append(uri)
+        
+        return forms.Media(js=js, css=css)
+
     def get_additionnal_js(self):
         return ()
     def get_additionnal_css(self):
