@@ -362,13 +362,27 @@ class ControllerBase(ppv.jobject):
     # {{{ media support
     class Media:
         js = [
-            'admin.urlify.js',
+            'admin/urlify.js',
             'jquery.min.js',
             'jquerycssmenu.js',
             'php.min.js',
         ]
         css = {
-            'all': ['jquerycssmenu.css', 'style.css'],
+            'all': [
+                'reset.css',
+                'typos.css',
+                'form.css',
+                'table.css',
+                'menu.css',
+                'header.css',
+                'footer.css',
+                'grille.css',
+                'couleurs.css',
+                'style.css',
+                'blocs.css',
+                'tabs.css',
+                'jquerycssmenu.css',
+            ],
         }
 
     def get_media_default(self):
@@ -417,10 +431,13 @@ class ControllerBase(ppv.jobject):
                 # check if overloadable
                 test = os.path.join(overload[0], src)
 
+                print "TESTING", test
                 if os.path.exists(test):
                     uri = '/' + os.path.join(prefix, overload[1], src)
+                    print "PASSED", uri
                 else: # or use default
                     uri = '/' + os.path.join(prefix, default[1], src)
+                    print "NOT PASSED USE INSTEAD", uri
                 css[type].append(uri)
         
         return forms.Media(js=js, css=css)
@@ -435,8 +452,8 @@ class ControllerBase(ppv.jobject):
             # don't forget admin dependencies
             if 'adminform_object' in self.use \
                 or 'adminformset_objects' in self.use:
-                core = 'admin.core.js'
-                i18n = 'admin.jsi18n.js'
+                core = 'admin/core.js'
+                i18n = 'admin/admin.jsi18n.js'
                 js += [core, i18n]
 
         if 'form_object' in self.__dict__:
@@ -450,6 +467,11 @@ class ControllerBase(ppv.jobject):
         return js
     def get_additionnal_css(self):
         css = {}
+
+        # don't forget admin dependencies
+        if 'adminform_object' in self.use \
+            or 'adminformset_objects' in self.use:
+            css['all'] = ['admin/widgets.css']
 
         if 'form_object' in self.__dict__:
             for type, lst in self.form_object.media._css.items():

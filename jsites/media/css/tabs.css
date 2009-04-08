@@ -1,0 +1,7 @@
+/* ######### tabs  ######### */
+.tab {display: none;}
+#tabs{overflow:auto;}
+.tabs ul{margin: 0;padding: 0;}
+.tabs ul li {list-style-type:none;padding:0; margin: 0 2px; float:right;}
+.tabs ul li a {border:1px solid #666;background:white url(../img/nav-bg.gif) bottom repeat-x; text-align:center; display:block;padding: 2px 1.5em;border-top:0;}
+.tabs ul li a:hover{background:white url(../img/nav-bg-reverse.gif) top repeat-x;color:#387944}
