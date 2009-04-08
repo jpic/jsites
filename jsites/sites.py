@@ -1,6 +1,7 @@
 # vim: set fileencoding=utf8 :
 # {{{ imports
 import re
+import os
 from django import http, template
 from django.core.exceptions import ImproperlyConfigured
 from django.shortcuts import render_to_response
@@ -51,7 +52,7 @@ def setopt(func, *args, **kwargs): # {{{
 # this is only to make template crashes happen before django template
 # takes the relay, making crashes debugable Werkzeug debugger
 TEST=True
-
+# {{{ to move
 class Constraint(object):
     def __init__(self, slaves, master, values, jsclass='jpicFieldValueNotEqual'):
         self.slaves = slaves
@@ -131,7 +132,7 @@ class jAdminField(helpers.AdminField):
         else:
             super(jAdminField, self).__init__(field_forms[field], field, is_first)
 
-def media_converter(media, additionnal_js=(), additionnal_css={}):
+def media_converter(media, additionnal_js=(), additionnal_css={}, overload=None, overload_prefix=None):
     js = []
     for src in media.js + additionnal_js:
         if src[0] == '/':
@@ -146,20 +147,31 @@ def media_converter(media, additionnal_js=(), additionnal_css={}):
         if type in additionnal_css:
             curcss+= additionnal_css[type]
         for src in curcss:
+            src = '%s/%s' % ('css', src)
+            uri = settings.JSITES_MEDIA_PREFIX
+            if overload:
+                path = os.path.join(overload[0], src)
+                print "PATH", path
+                if os.path.exists(path):
+                    uri  = overload_prefix + overload[1]
+                    print "EXIST", path, uri
+            else:
+                uri = settings.JSITES_MEDIA_PREFIX + '/' + src
+
             if src[0] == '/':
                 css[type].append(src)
             else:
-                css[type].append('%scss/%s' % (settings.JSITES_MEDIA_PREFIX, src))
+                css[type].append('%s%s' % (uri, src))
     
     return forms.Media(js=js, css=css)
-
+# }}}
 class UnnamedControllerException(Exception):
     def __init__(self, kwargs):
         msg = "Need either name or urlname or content_class in either: class attributes, Controller constructor arguments or Controller instance"
         super(UnnamedControllerException, self).__init__(msg)
 
-class ControllerBase(ppv.jobject):
-    def __init__(self, **kwargs):
+class ControllerBase(ppv.jobject): 
+    def __init__(self, **kwargs): # {{{
         """
         If a controller should pass itself to controllers it invokes as
         inlines using the "inline" argument.
@@ -202,9 +214,9 @@ class ControllerBase(ppv.jobject):
 
         # back up any variable to kwargs
         for kwarg in self.add_to_kwargs:
-            self.kwargs[kwarg] = getattr(self, kwarg)
+            self.kwargs[kwarg] = getattr(self, kwarg) # }}}
     
-    def get_permission(self, user=None, action_name=None, kwargs={}):
+    def get_permission(self, user=None, action_name=None, kwargs={}): # {{{
         """ Wraps around check_permission, setting controller instance defaults """
         if not self.is_running and not user and not action_name:
             raise Exception("Not giving away a permission without action_name and user kwargs if not running")
@@ -221,7 +233,7 @@ class ControllerBase(ppv.jobject):
     def check_permission(self, user, action_name, kwargs):
         """ Checks if a user can request an action with specified kwargs """
         return True
-
+    # }}}
     def get_loader(self):
         """ Return true if you need a loader """
         return True
@@ -355,10 +367,15 @@ class ControllerBase(ppv.jobject):
             'all': ('jquerycssmenu.css', 'style.css'),
         }
     _media = Media
-    def get_media_path(self):
+    def get_default_media(self):
+        return (
+            jsites.__path__[0] + '/media',
+            'jsites/media',
+        )
+    def get_media_overload(self):
         return None
     def get_media(self):
-        return media_converter(self._media, self.additionnal_js, self.additionnal_css)
+        return media_converter(self._media, self.additionnal_js, self.additionnal_css, self.media_overload, '/' + self.urlname + '/')
     def get_additionnal_js(self):
         return ()
     def get_additionnal_css(self):
@@ -540,6 +557,39 @@ class ModelController(ControllerBase):
                 from_get[key.encode()] = value
         return from_get
 # }}}
+    def get_reverse_fk_field_names(self): # {{{
+        names = []
+        for name in self.content_class._meta.get_all_field_names():
+            field = self.content_class._meta.get_field_by_name(name)[0]
+            if isinstance(field, related.RelatedObject) and isinstance(field.field, related.ForeignKey):
+                names.append(name)
+        return names
+
+    def get_reverse_fk_field_objects(self):
+        return self.field_names_to_objects(self.reverse_fk_field_names)
+
+    def field_names_to_objects(self, names):
+        objects = {}
+        for name in names:
+            objects[name] = self.content_class._meta.get_field_by_name(name)[0]
+        return objects
+
+    def get_required_field_names(self):
+        required = []
+        for name, field in self.content_field_objects.items():
+            if not hasattr(field, 'blank'):
+                continue
+            if not field.blank and not field.null:
+                required.append(name)
+        return required
+       
+    def get_fk_fields(self):
+        fields = []
+        for field in self.content_class._meta.fields:
+            if isinstance(field, related.ForeignKey):
+                fields.append(field)
+        return fields
+        # }}}
     # {{{ virtual_fields, inline_relation_fields (model re routines)
     def get_virtual_fields(self):
         """
@@ -566,59 +616,15 @@ class ModelController(ControllerBase):
             if field.rel.to == self.inline.content_class:
                 return field
     # }}}
-    def get_fk_fields(self):
-        fields = []
-        for field in self.content_class._meta.fields:
-            if isinstance(field, related.ForeignKey):
-                fields.append(field)
-        return fields
-
     def details(self):
         self.add_to_context('content_object')
         self.add_to_context('content_field_names')
         self.add_to_context('content_field_objects')
     details = setopt(details, urlname='details', urlregex=r'^(?P<content_id>.+)/$', verbose_name='détails')
 
-    def get_reverse_fk_field_names(self):
-        names = []
-        for name in self.content_class._meta.get_all_field_names():
-            field = self.content_class._meta.get_field_by_name(name)[0]
-            if isinstance(field, related.RelatedObject) and isinstance(field.field, related.ForeignKey):
-                names.append(name)
-        return names
-
-    def get_reverse_fk_field_objects(self):
-        return self.field_names_to_objects(self.reverse_fk_field_names)
-
-    def field_names_to_objects(self, names):
-        objects = {}
-        for name in names:
-            objects[name] = self.content_class._meta.get_field_by_name(name)[0]
-        return objects
-
-    def get_required_field_names(self):
-        required = []
-        for name, field in self.content_field_objects.items():
-            if not hasattr(field, 'blank'):
-                continue
-            if not field.blank and not field.null:
-                required.append(name)
-        return required
-
 class ModelFormController(ModelController):
     actions = ('create', 'list', 'edit', 'details', 'delete', 'autocomplete')
-
-    def get_search_field_names(self):
-        """
-        Returns a list of fields allowed to search on.
-        """
-        names = []
-        for object in self.content_field_objects:
-            if isinstance(object, fields.CharField):
-                names.append(object.name)
-        return names
-
-    def autocomplete(self):
+    def autocomplete(self): # {{{
         import operator
         from django.db.models.query import QuerySet
         from django.db import models
@@ -650,7 +656,7 @@ class ModelFormController(ModelController):
             qs = qs & other_qs
         data = ''.join([u'%s|%s\n' % (f.__unicode__(), f.pk) for f in qs])
         return http.HttpResponse(data)
-    autocomplete = setopt(autocomplete, urlname='autocomplete', urlregex=r'^autocomplete')
+    autocomplete = setopt(autocomplete, urlname='autocomplete', urlregex=r'^autocomplete') # }}}
 
     def delete(self):
         raise NotImplemented()
@@ -670,7 +676,7 @@ class ModelFormController(ModelController):
 
         return items
     # }}}
-    def get_use(self):
+    def get_use(self): # {{{
         """
         Lise of "use flags".
         """
@@ -678,8 +684,8 @@ class ModelFormController(ModelController):
             'adminform_object',
             'adminformset_objects',
         )
-
-    def forms(self):
+# }}}
+    def forms(self): # {{{
         """
         Forms view, used by edit and create.
         """
@@ -707,13 +713,15 @@ class ModelFormController(ModelController):
         if 'adminform_object' in self.use \
             or 'adminformset_objects' in self.use:
             core = settings.ADMIN_MEDIA_PREFIX+'js/core.js'
-            i18n = settings.JSITES_MEDIA_PREFIX+'js/admin.jsi18n.js'
+            i18n = 'admin.jsi18n.js'
             self.media.add_js([core, i18n])
 
         # don't leave out any form/formset object media
         self.media += self.form_object.media
         for formset_object in self.formset_objects.values():
             self.media += formset_object.media
+
+        self.media = media_converter(self.media)
 
         # allow template overload per controller-urlname/action
         self.template = [
@@ -1182,7 +1190,7 @@ class ModelFormController(ModelController):
         Uses self.inline_formset_field_names by default.
         """
         return self.field_names_to_objects(self.inline_formset_field_names)
-
+# }}}
     # {{{ search/list view
     def get_search_engine_object(self):
         import jsearch
@@ -1219,6 +1227,16 @@ class ModelFormController(ModelController):
         self.add_to_context('content_field_objects')
         # additionnal fancey links
     list = setopt(list, urlname='list', urlregex=r'^$', verbose_name=u'liste')
+
+    def get_search_field_names(self):
+        """
+        Returns a list of fields allowed to search on.
+        """
+        names = []
+        for object in self.content_field_objects:
+            if isinstance(object, fields.CharField):
+                names.append(object.name)
+        return names
     # }}}
 
 class AbstractController(ModelFormController):
@@ -1261,7 +1279,7 @@ class ControllerNode(ControllerBase):
         self._content_class_registry = {} # content_class -> controller instance
         super(ControllerNode, self).__init__(**kwargs)
 
-    def get_menu(self):
+    def get_menu(self): # {{{
         menu = super(ControllerNode, self).get_menu()
         return menu
 
@@ -1277,7 +1295,7 @@ class ControllerNode(ControllerBase):
                 items[vname][cvname] = controller.menu_items
 
         return items
-
+    # }}}
     @classmethod
     def factory(self, app_name, **kwargs):
         if not 'urlname' in kwargs:
@@ -1381,23 +1399,25 @@ class ControllerNode(ControllerBase):
         for controller in self._registry.values():
             prefix = r'^%s/' % controller.urlname
             urlpatterns += urls.patterns('', urls.url(prefix, urls.include(controller.urls), kwargs={'parent': self}))
-            if settings.DEBUG and controller.media_path:
-                urlpatterns += self.get_static_url(controller.media_path)
 
         if settings.DEBUG:
-            urlpatterns += self.get_static_url(jsites.__path__[0])
+            if self.default_media:
+                urlpatterns += self.get_static_url(self.default_media[0], self.default_media[1])
+            if self.media_overload:
+                urlpatterns += self.get_static_url(self.media_overload[0], self.media_overload[1])
+
             print "%s urls fetched, visit /%s" % (self.name, self.urlname)
         return urlpatterns
 
-    def get_static_url(self, path):
+    def get_static_url(self, path, uri='media/'):
         """
         Should be improved: allowing each application to have its own media repository.
         """
-        path = '%s/media' % path
         urlpatterns = urls.patterns('',
-            (r'^media/(?P<path>.*)$', 'django.views.static.serve',
+            (r'^%s(?P<path>.*)$' % uri, 'django.views.static.serve',
                 {'document_root': path, 'show_indexes': True}),
         )
+        print path, uri, urlpatterns
         return urlpatterns
 
     @classmethod

@@ -5,7 +5,10 @@ from django.contrib.auth.models import User
 from django.utils.translation import ugettext, ugettext_lazy as _
 
 class ItbmSite(jsites.ControllerNode):
-    pass
+    media_overload = (
+        '/home/jpic/sites/jtest/itbm/media',
+        'media/',
+    )
 
 staff = ItbmSite.instanciate(
     urlname='staff',

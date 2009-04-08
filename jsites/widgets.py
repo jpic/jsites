@@ -6,8 +6,8 @@ from django.forms.util import flatatt
 
 class WysiwygWidget(widgets.Textarea):
     class Media:
-        js = (settings.JSITES_MEDIA_PREFIX+'js/jquery.wysiwyg.js',)
-        css = {'all': (settings.JSITES_MEDIA_PREFIX+'/css/jquery.wysiwyg.css',)}
+        js = ('jquery.wysiwyg.js',)
+        css = {'all': ('jquery.wysiwyg.css',)}
 
     def render(self, name, value, attrs={}):
         self.attrs['id'] = 'id_%s' % name
@@ -23,8 +23,8 @@ class WysiwygWidget(widgets.Textarea):
 class AsmSelect(widgets.SelectMultiple):
     class Media:
         js = (
-            settings.JSITES_MEDIA_PREFIX+'js/jquery-ui.js',
-            settings.JSITES_MEDIA_PREFIX+'js/jquery.asmselect.js',
+            'jquery-ui.js',
+            'jquery.asmselect.js',
         )
         css = {
             'all': (settings.JSITES_MEDIA_PREFIX+'css/jquery.asmselect.css',)
@@ -46,12 +46,12 @@ class AsmSelect(widgets.SelectMultiple):
 class ForeignKeySearchInput(widgets.HiddenInput):
     class Media:
         js = (
-            settings.JSITES_MEDIA_PREFIX+'js/jquery.bgiframe.min.js',
-            settings.JSITES_MEDIA_PREFIX+'js/jquery.ajaxQueue.js',
-            settings.JSITES_MEDIA_PREFIX+'js/jquery.autocomplete.min.js',
+            'jquery.bgiframe.min.js',
+            'jquery.ajaxQueue.js',
+            'jquery.autocomplete.min.js',
         )
         css = {
-            'all': (settings.JSITES_MEDIA_PREFIX+'css/jquery.autocomplete.css',),
+            'all': ('jquery.autocomplete.css',),
         }
 
     """

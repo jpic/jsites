@@ -90,7 +90,7 @@ INSTALLED_APPS = (
 )
 
 # Plesae don't forget trailing slash or nothing will work
-JSITES_MEDIA_PREFIX="/staff/media/"
+JSITES_MEDIA_PREFIX="/staff/jsites/media/"
 AUTH_PROFILE_MODULE="itbm.UserProfile"
 
 from itbm.settings import *
