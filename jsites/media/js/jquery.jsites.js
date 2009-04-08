@@ -179,7 +179,6 @@ function assert() {
         report += ', '+this.conditions[i].verbose;
     }
     
-    //console.log(this.conditions.length + ' assertions verified OK for field '+this.name+report);
     return true;
 };
 
