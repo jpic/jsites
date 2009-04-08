@@ -4,10 +4,14 @@ import models
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext, ugettext_lazy as _
 
-staff = jsites.ControllerNode.factory('itbm',
+class ItbmSite(jsites.ControllerNode):
+    pass
+
+staff = ItbmSite.instanciate(
     urlname='staff',
     name='Chocolat pistache: backoffice'
 )
+staff.register_app('itbm')
 staff.register_app('auth')
 
 #class TicketNode(Node):
