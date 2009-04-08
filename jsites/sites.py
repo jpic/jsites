@@ -367,7 +367,7 @@ class ControllerBase(ppv.jobject):
             'all': ('jquerycssmenu.css', 'style.css'),
         }
     _media = Media
-    def get_default_media(self):
+    def get_media_default(self):
         return (
             jsites.__path__[0] + '/media',
             'jsites/media',
@@ -376,6 +376,25 @@ class ControllerBase(ppv.jobject):
         return None
 
     def get_media(self):
+        # make sure we prefix with the parent's urlname, if any
+        if self.parent:
+            prefix = self.parent.urlname
+            overload = self.parent.media_overload
+            default = self.parent.media_default
+        else:
+            prefix = self.urlname
+            overload = self.media_overload
+            default = self.media_default
+
+        # add form and formset media, if any was required by the action
+        if 'form_object' in self.__dict__:
+            self._media += self.form_object.media
+        if 'formset_objects' in self.__dict__:
+            for formset in self.formset_objects:
+                self._media += formset.media
+        if 'formset_object' in self.__dict__:
+            self._media += self.formset_object.media
+
         js = []
         for src in self._media.js + self.additionnal_js:
             if src[0] == '/':
@@ -384,6 +403,7 @@ class ControllerBase(ppv.jobject):
                 js.append('%sjs/%s' % (settings.JSITES_MEDIA_PREFIX, src))
         
         css={}
+
         for type in self._media.css:
             css[type] = []
             current_type = self._media.css[type]
@@ -400,12 +420,12 @@ class ControllerBase(ppv.jobject):
                 src = '%s/%s' % ('css', src)
 
                 # check if overloadable
-                overload = self.media_overload
                 test = os.path.join(overload[0], src)
+
                 if os.path.exists(test):
-                    uri = '/' + os.path.join(self.urlname, overload[1], src)
+                    uri = '/' + os.path.join(prefix, overload[1], src)
                 else: # or use default
-                    uri = '/' + os.path.join(self.urlname, 'jsites', 'media', src)
+                    uri = '/' + os.path.join(prefix, default[1], src)
                 css[type].append(uri)
         
         return forms.Media(js=js, css=css)
@@ -749,13 +769,6 @@ class ModelFormController(ModelController):
             core = settings.ADMIN_MEDIA_PREFIX+'js/core.js'
             i18n = 'admin.jsi18n.js'
             self.media.add_js([core, i18n])
-
-        # don't leave out any form/formset object media
-        self.media += self.form_object.media
-        for formset_object in self.formset_objects.values():
-            self.media += formset_object.media
-
-        self.media = media_converter(self.media)
 
         # allow template overload per controller-urlname/action
         self.template = [
@@ -1435,8 +1448,8 @@ class ControllerNode(ControllerBase):
             urlpatterns += urls.patterns('', urls.url(prefix, urls.include(controller.urls), kwargs={'parent': self}))
 
         if settings.DEBUG:
-            if self.default_media:
-                urlpatterns += self.get_static_url(self.default_media[0], self.default_media[1])
+            if self.media_default:
+                urlpatterns += self.get_static_url(self.media_default[0], self.media_default[1])
             if self.media_overload:
                 urlpatterns += self.get_static_url(self.media_overload[0], self.media_overload[1])
 

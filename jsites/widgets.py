@@ -27,7 +27,7 @@ class AsmSelect(widgets.SelectMultiple):
             'jquery.asmselect.js',
         )
         css = {
-            'all': (settings.JSITES_MEDIA_PREFIX+'css/jquery.asmselect.css',)
+            'all': ('jquery.asmselect.css',)
         }
     def render(self, name, *args, **kwargs):
         html = u"""
