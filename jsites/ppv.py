@@ -1,3 +1,6 @@
+class Sorry(Exception):
+    pass
+
 #PROFILE=('pri', 'loop', 'method')
 PROFILE=()
 TEST=False

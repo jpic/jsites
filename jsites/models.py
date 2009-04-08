@@ -1,3 +1,6 @@
 from django.db import models
+from django.contrib.auth.models import User
 
-# Create your models here.
+class Search(models.Model):
+    user = models.ForeignKey(User, verbose_name=(u'user'), null=True, blank=True)
+    url = models.TextField(verbose_name=(u'url'), null=True, blank=True)
