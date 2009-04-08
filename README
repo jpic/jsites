@@ -48,3 +48,54 @@ Overload any template in this directory, for example, in yourapp/templates/jsite
     {% extends "jsites_default/base.html" %}
 
 This will let you overload the base template with no hassle.
+
+Media
+=====
+
+Structure
+---------
+
+By default, the key methods are:
+
+- get_media()
+- get_additionnal_css()
+- get_additionnal_js()
+
+get_media()
+    This methods checks the class Media and any additionnal js or css and
+    returns a forms.Media object with all of them.
+    If media_overload property is defined in the controller or the parent,
+    then each media will be checked in the path of media_overload before
+    the default medias from jsites are used, unless the media as an abso-
+    lute path (starting with a slash).
+
+get_additionnal_*()
+    This method checks if there is any admin or form media to add.
+
+Usage
+-----
+
+::
+
+class ItbmSite(jsites.ControllerNode):
+    media_overload = (
+        '/home/jpic/sites/jtest/itbm/media',
+        'media/',
+    )
+
+staff = ItbmSite.instanciate(
+    urlname='staff',
+    name='Chocolat pistache: backoffice'
+)
+
+Note
+----
+
+This deprecates settings.JSITES_MEDIA_PREFIX
+
+Adding media
+------------
+
+You should overload get_additionnal_*() and add your media file names there.
+
+Using "foo.css" will first check for yourapp/media/css/foo.css then jsites/media/css/foo.css
