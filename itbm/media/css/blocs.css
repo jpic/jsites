@@ -1,0 +1,53 @@
+/*Général*/
+body {
+	text-align: center;
+}
+#page, #main, #header {
+	position: relative;
+}
+#page {
+	text-align: left;
+	margin: 0  auto;
+	width: 800px;
+}
+#main {
+	overflow: auto;
+	padding:10px;
+	-moz-border-radius-bottomleft:5px;
+-moz-border-radius-bottomright:5px;
+}
+#ariane {
+	height: 18px;
+	width:100%;
+	position:absolute; 	
+	z-index:1;
+}
+#menu{
+  z-index:2;
+}
+#left {
+	width: 200px;
+}
+#right {
+	width: 595px;
+	margin:0 0 0 5px;
+}
+#subcol {
+	width: 200px;
+	position: absolute;
+	left: 0;
+	top: 0;
+}
+.content, .wrapper {clear: both;	display: block;float: none;overflow: hidden;}
+.content{}
+.wrapper {background: none;padding: 3px;}
+.col {float: left;display:inline;}
+.float_box{overflow: hidden;padding-bottom:1px;}
+.m1{margin:3px;}
+.m2{margin: 0 0 3px 0;}
+
+#lang{position:absolute;top:0;width:794px;text-align:right;padding:3px;height:20px;}
+#diap{height:180px;padding:10px; -moz-border-radius:10px;margin:5px 0 10px 0;}
+#scene_nav{margin:10px 0 5px 0}
+/*else*/
+#footer {clear: both;position: relative;	padding: 5px 0 20px 6px }

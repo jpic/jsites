@@ -1,0 +1,104 @@
+.jquerycssmenu{
+border-bottom: 1px solid #8b7038;
+padding-left: 15px; /*offset of tabs relative to browser left edge*/
+z-index:50;
+position:absolute;
+height:26px;
+bottom:0px;
+left:250px;
+}
+
+.jquerycssmenu ul{
+margin: 0;
+padding: 0;
+list-style-type: none;
+z-index:50;
+}
+
+/*Top level list items*/
+.jquerycssmenu ul li{
+position: relative;
+margin: 0;
+padding: 0;
+display: inline;
+
+float: left;
+}
+
+/*Top level menu link items style*/
+.jquerycssmenu ul li a{
+display: block;
+background: #fff;/*url(/static/jmenu/tintblue.gif) top center repeat-x; background of tabs (default state)*/
+padding: 4px ;
+margin-right: 3px; /*spacing between tabs*/
+border: 1px solid #8b7038;
+border-bottom: 0;
+color: #cf1515;
+text-decoration: none;
+font-weight:bold;
+text-align:center;
+-moz-border-radius-topleft:5px;
+-moz-border-radius-topright:5px;
+}
+
+.jquerycssmenu ul li a:hover{
+background-image: url(/static/jmenu/tintbluedark.gif) /*tab link background during hover state*/
+}
+	
+/*1st sub level menu*/
+.jquerycssmenu ul li ul{
+position: absolute;
+left: 0;
+display: block;
+visibility: hidden;
+border-top: 1px solid #8b7038;
+}
+
+/*Sub level menu list items (undo style from Top level List Items)*/
+.jquerycssmenu ul li ul li{
+display: list-item;
+float: none;
+}
+.jquerycssmenu ul li ul li a{
+-moz-border-radius-topleft:0px;
+-moz-border-radius-topright:0px;
+}
+
+/*All subsequent sub menu levels vertical offset after 1st level sub menu */
+.jquerycssmenu ul li ul li ul{
+top: 0;
+
+}
+
+/* Sub level menu links style */
+.jquerycssmenu ul li ul li a{
+width: 160px; /*width of sub menus*/
+background: white;
+color: black;
+padding: 4px 5px;
+font-weight:normal;
+text-align:left;
+margin: 0;
+border-top-width: 0;
+border-bottom: 1px solid #8b7038;
+}
+
+.jquerycssmenu ul li ul li a:hover{ /*sub menus hover style*/
+background: #e0ffa9;
+color: black;
+}
+
+/* ######### CSS classes applied to down and right arrow images  ######### */
+
+.downarrowclass{
+position: absolute;
+top: 7px;
+right: 5px;
+border:1px solid red;
+}
+
+.rightarrowclass{
+position: absolute;
+top: 5px;
+right: 5px;
+}

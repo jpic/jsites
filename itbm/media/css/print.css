@@ -1,0 +1,8 @@
+body{font-family: Arial, sans-serif;font-size:90%;margin: 2% 5%;}
+.jquerycssmenu, #lang, #footer, #header{display:none;}
+a img{border:0;}
+a{color:black;}
+table{border:1px solid black; width:100%; margin:0 0 1em 0; border-collapse: collapse;}
+thead{background:grey;}
+th, td{border:1px solid black;}
+

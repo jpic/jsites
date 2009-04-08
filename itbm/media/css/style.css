@@ -1,0 +1,21 @@
+/*reset*/
+@import "reset.css";
+/*Typos*/
+@import "typos.css";
+@import "form.css";
+@import "table.css";
+@import "menu.css";
+/*blocs*/
+@import "blocs.css";
+/*styles de blocs*/
+@import "header.css";
+@import "footer.css";
+@import "grille.css";
+
+/*Modules*/
+/*Mise en couleurs*/
+@import "couleurs.css";
+
+body {
+    overflow: scroll;
+}

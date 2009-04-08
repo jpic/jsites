@@ -1,0 +1,17 @@
+/* Formulaires */
+/* Fieldsets */
+fieldset {padding: 1.4em;margin: 0 0 1.5em 0;}
+legend {font-weight: bold;font-size: 1.2em;}
+/* Text fields */
+input, textarea {width: 75%;padding: 2px;font-size: 1.1em;}
+input[type=submit], input[type="reset"] {cursor: pointer;}
+input[type=checkbox]{width:auto;}
+
+textarea {height: 50px;}
+label {}
+label:first-letter {text-transform: uppercase}
+#login input , #login input[type=submit] {padding: 1px;font-size: 1em;width:98%;}
+#login label{color:#fff;font-size:80%;}
+#login th{text-align:right;}
+#recherche input {}
+#ajouter {}
