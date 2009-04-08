@@ -36,3 +36,15 @@ subclass django.db.models.Model to reverse engineer controllers
 document interface driven development, aka easy bucks howto
 decouple DBAL
 implement with couchdb
+
+Template overloading
+====================
+
+Make sure 'jsites' is the last app in settings.INSTALLED_APPS.
+Running ./manage.py jsites_install will symlink jsites/templates/jsites_default to jsites/templates/jsites.
+In your templates dir (either from your app, or TEMPLATE_DIRECTORIES), create "jsites" directory.
+Overload any template in this directory, for example, in yourapp/templates/jsites/base.html::
+
+    {% extends "jsites_default/base.html" %}
+
+This will let you overload the base template with no hassle.

@@ -82,11 +82,11 @@ INSTALLED_APPS = (
     #'django.contrib.admin',
     'django.contrib.admindocs',
     'django.contrib.databrowse',
-    'jsites',
     'structure',
     'django_extensions',
     'django_evolution',
     'itbm',
+    'jsites',
 )
 
 # Plesae don't forget trailing slash or nothing will work
