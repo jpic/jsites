@@ -236,11 +236,9 @@ class ControllerBase(ppv.jobject):
         to reverse the action url.
         """
         items = {}
-
         # try to add each action by default
         for action_method_name in self.actions:
-            items[getattr(getattr(self, action_method_name), 'verbose_name').capitalize()] = self.get_action_url(action_method_name)
-
+            items[unicode(getattr(getattr(self, action_method_name), 'verbose_name'))] = self.get_action_url(action_method_name)
         return items
 
     def get_menu(self):
