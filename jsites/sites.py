@@ -1269,14 +1269,13 @@ class ControllerNode(ControllerBase):
         items = {}
 
         for controller in self._registry.values():
-            vname = unicode(self.name.capitalize())
+            vname = unicode(self.name)
             if vname not in items:
                 items[vname] = {}
-            cvname = unicode(controller.name.capitalize())
+            cvname = unicode(controller.name)
             if controller.menu_items:
                 items[vname][cvname] = controller.menu_items
 
-        print 'got?', items.keys()
         return items
 
     @classmethod
