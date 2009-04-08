@@ -295,6 +295,10 @@ class ControllerBase(ppv.jobject):
         # It can override anything that was set by run()
         response = self.action()
 
+        # getting medias here assure that form/formset medias are 
+        # not left away
+        self.add_to_context('media')
+
         if isinstance(response, http.HttpResponse):
             return response
 
@@ -357,16 +361,16 @@ class ControllerBase(ppv.jobject):
     # }}}
     # {{{ media support
     class Media:
-        js = (
+        js = [
             'admin.urlify.js',
             'jquery.min.js',
             'jquerycssmenu.js',
             'php.min.js',
-        )
+        ]
         css = {
-            'all': ('jquerycssmenu.css', 'style.css'),
+            'all': ['jquerycssmenu.css', 'style.css'],
         }
-    _media = Media
+
     def get_media_default(self):
         return (
             jsites.__path__[0] + '/media',
@@ -386,17 +390,8 @@ class ControllerBase(ppv.jobject):
             overload = self.media_overload
             default = self.media_default
 
-        # add form and formset media, if any was required by the action
-        if 'form_object' in self.__dict__:
-            self._media += self.form_object.media
-        if 'formset_objects' in self.__dict__:
-            for formset in self.formset_objects:
-                self._media += formset.media
-        if 'formset_object' in self.__dict__:
-            self._media += self.formset_object.media
-
         js = []
-        for src in self._media.js + self.additionnal_js:
+        for src in self.Media.js + self.additionnal_js:
             if src[0] == '/':
                 js.append(src)
             else:
@@ -404,12 +399,12 @@ class ControllerBase(ppv.jobject):
         
         css={}
 
-        for type in self._media.css:
+        for type in self.Media.css:
             css[type] = []
-            current_type = self._media.css[type]
+            current_type = self.Media.css[type]
 
             if type in self.additionnal_css:
-                current_type += additionnal_css[type]
+                current_type += self.additionnal_css[type]
 
             for src in current_type:
                 if src[0] == '/': # allow absolute
@@ -431,9 +426,51 @@ class ControllerBase(ppv.jobject):
         return forms.Media(js=js, css=css)
 
     def get_additionnal_js(self):
-        return ()
+        js = []
+        # add form and formset media, if any was required by the action
+        if 'form_object' in self.__dict__ \
+            or 'formset_objects' in self.__dict__ \
+            or 'formset_object' in self.__dict__:
+
+            # don't forget admin dependencies
+            if 'adminform_object' in self.use \
+                or 'adminformset_objects' in self.use:
+                core = 'admin.core.js'
+                i18n = 'admin.jsi18n.js'
+                js += [core, i18n]
+
+        if 'form_object' in self.__dict__:
+            js += self.form_object.media._js
+        if 'formset_objects' in self.__dict__:
+            for formset in self.formset_objects:
+                js += formset.media._js
+        if 'formset_object' in self.__dict__:
+            js += self.formset_object.media._js
+
+        return js
     def get_additionnal_css(self):
-        return {}
+        css = {}
+
+        if 'form_object' in self.__dict__:
+            for type, lst in self.form_object.media._css.items():
+                if not type in css:
+                    css[type] = []
+                css[type] += lst
+
+        if 'formset_objects' in self.__dict__:
+            for type, lst in self.formset_objects.media._css.items():
+                for formset in self.formset_objects:
+                    if not type in css:
+                        css[type] = []
+                    css[type] += lst
+
+        if 'formset_object' in self.__dict__:
+            for type, lst in self.formset_object.media._css.items():
+                if not type in css:
+                    css[type] = []
+                css[type] += lst
+
+        return css
     # }}}
     # {{{ context
     def get_context(self):
@@ -442,14 +479,15 @@ class ControllerBase(ppv.jobject):
         
         By default, this adds the following variables:
         - controller is the instance,
-        - media is self.media,
         - jsites_media_prefix is settings.JSITES_MEDIA_PREFIX
         - menu is self.menu or the paren't.
         - parent is the parent instance if any.
+
+        Media is added to context by run.
+        For the moment, its the only way to get form medias working.
         """
         context = {
             'controller': self,
-            'media': self.media,
             'jsites_media_prefix': settings.JSITES_MEDIA_PREFIX,
         }
         if self.parent:
@@ -762,13 +800,6 @@ class ModelFormController(ModelController):
                 return http.HttpResponseRedirect(self.get_action_url('details',kwargs={'content_id': self.content_id}))
             elif form_valid:
                 return http.HttpResponseRedirect(self.get_action_url('edit',kwargs={'content_id': self.content_id}))
-
-        # admin js deps (like jquery for jsites)
-        if 'adminform_object' in self.use \
-            or 'adminformset_objects' in self.use:
-            core = settings.ADMIN_MEDIA_PREFIX+'js/core.js'
-            i18n = 'admin.jsi18n.js'
-            self.media.add_js([core, i18n])
 
         # allow template overload per controller-urlname/action
         self.template = [

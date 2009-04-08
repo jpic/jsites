@@ -6,8 +6,8 @@ from django.forms.util import flatatt
 
 class WysiwygWidget(widgets.Textarea):
     class Media:
-        js = ('jquery.wysiwyg.js',)
-        css = {'all': ('jquery.wysiwyg.css',)}
+        js = ( 'jquery.wysiwyg.js', )
+        css = { 'all': ('jquery.wysiwyg.css',) }
 
     def render(self, name, value, attrs={}):
         self.attrs['id'] = 'id_%s' % name
@@ -22,13 +22,8 @@ class WysiwygWidget(widgets.Textarea):
 
 class AsmSelect(widgets.SelectMultiple):
     class Media:
-        js = (
-            'jquery-ui.js',
-            'jquery.asmselect.js',
-        )
-        css = {
-            'all': ('jquery.asmselect.css',)
-        }
+        js = ( 'jquery-ui.js', 'jquery.asmselect.js', )
+        css = { 'all': ('jquery.asmselect.css',) }
     def render(self, name, *args, **kwargs):
         html = u"""
     <script type="text/javascript">
