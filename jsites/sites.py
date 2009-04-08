@@ -821,7 +821,7 @@ class ModelFormController(ModelController):
     def create(self):
         """ Action wrapping around self.forms, requiring no content_id """
         return self.forms()
-    create = setopt(create, urlname='create', urlregex=r'^create/$', verbose_name=u'créer (nouveau)')
+    create = setopt(create, urlname='create', urlregex=r'^create/$', verbose_name=u'nouvelle saisie')
 
     def save_form(self):
         """ Saves self.form_object """
