@@ -133,9 +133,6 @@ class ProgrammablePropertyInitialiser(object):
             return True
         return False
 
-class jobject(ProgrammablePropertyInitialiser):
-    pass
-
 if TEST:
     class jtestA(jobject):
         testA=True
