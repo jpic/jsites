@@ -1,0 +1,99 @@
+Don't
+=====
+
+Do not ever instanciate a ControllerNode/Site without going through the
+class method instanciate().
+
+Planning
+
+========== =================================================================
+0.0alpha0  details view correctly displays any kind of field
+0.0alpha1  form view, create/edit urls, with url->field pre-population
+0.0alpha2  integration of search engine
+0.0alpha3  integration of javascript dependencies, offline tab support
+0.0alpha4  integration of jmenu for navigation
+0.0alpha5  integration of inlines, "just like in admin" (easy migration)
+0.0alpha6  allow merging one formset with the content object form
+0.0alpha7  add asmselect widget
+0.0alpha8  get js ui mutation configurations set up
+0.0alpha9  use autocomplete widget for fk
+0.0alpha10 allow template overload
+0.0alpha11 allow media overload
+0.0alpha12 implement ordering on search results
+0.0alpha13 subclass ControllerNode to Site (login, register, etc ...)
+0.0alpha14 add controller views: save search criterias, mail new results
+========== =================================================================
+
+Reminder: carto/mmm
+
+Later
+
+client side field level constraints support in controllers
+server side field level constraints support in controllers
+implement i18n, add english translation
+document interface driven development
+
+implement with couchdb
+
+Template overloading
+====================
+
+Make sure 'jsites' is the last app in settings.INSTALLED_APPS.
+Running ./manage.py jsites_install will symlink jsites/templates/jsites_default to jsites/templates/jsites.
+In your templates dir (either from your app, or TEMPLATE_DIRECTORIES), create "jsites" directory.
+Overload any template in this directory, for example, in yourapp/templates/jsites/base.html::
+
+    {% extends "jsites_default/base.html" %}
+
+This will let you overload the base template with no hassle.
+
+Media
+=====
+
+Structure
+---------
+
+By default, the key methods are:
+
+- get_media()
+- get_additionnal_css()
+- get_additionnal_js()
+
+get_media()
+    This methods checks the class Media and any additionnal js or css and
+    returns a forms.Media object with all of them.
+    If media_overload property is defined in the controller or the parent,
+    then each media will be checked in the path of media_overload before
+    the default medias from jsites are used, unless the media as an abso-
+    lute path (starting with a slash).
+
+get_additionnal_*()
+    This method checks if there is any admin or form media to add.
+
+Usage
+-----
+
+::
+
+class ItbmSite(jsites.ControllerNode):
+    media_overload = (
+        '/home/jpic/sites/jtest/itbm/media',
+        'media/',
+    )
+
+staff = ItbmSite.instanciate(
+    urlname='staff',
+    name='Chocolat pistache: backoffice'
+)
+
+Note
+----
+
+This deprecates settings.JSITES_MEDIA_PREFIX
+
+Adding media
+------------
+
+You should overload get_additionnal_*() and add your media file names there.
+
+Using "foo.css" will first check for yourapp/media/css/foo.css then jsites/media/css/foo.css
