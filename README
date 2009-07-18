@@ -18,10 +18,8 @@ Planning
 0.0alpha8  get js ui mutation configurations set up
 0.0alpha9  use autocomplete widget for fk
 0.0alpha10 allow template overload
-0.0alpha11 allow media overload
-0.0alpha12 implement ordering on search results
-0.0alpha13 subclass ControllerNode to Site (login, register, etc ...)
-0.0alpha14 add controller views: save search criterias, mail new results
+0.1alpha0  Refactor into final structure, particularely for testing
+0.1alpha1  Cover most of the resource module.
 ========== =================================================================
 
 Reminder: carto/mmm
