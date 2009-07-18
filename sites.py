@@ -28,31 +28,3 @@ from django.contrib.admin import widgets as admin_widgets
 from ppi import jobject
 from structure import items
 
-# when this variable is enabled:
-# things like loops that should happen in a template happen in python first
-# this is only to make template crashes happen before django template
-# takes the relay, making crashes debugable Werkzeug debugger
-TEST=True
-
-def media_converter(media, additionnal_js=(), additionnal_css={}):
-    js = []
-    for src in media.js + additionnal_js:
-        if src[0] == '/':
-            js.append(src)
-        else:
-            js.append('%sjs/%s' % (settings.JSITES_MEDIA_PREFIX, src))
-    
-    css={}
-    for type in media.css:
-        css[type] = []
-        curcss = media.css[type]
-        if type in additionnal_css:
-            curcss+= additionnal_css[type]
-        for src in curcss:
-            if src[0] == '/':
-                css[type].append(src)
-            else:
-                css[type].append('%scss/%s' % (settings.JSITES_MEDIA_PREFIX, src))
-    
-    return forms.Media(js=js, css=css)
-
