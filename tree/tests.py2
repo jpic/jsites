@@ -1,0 +1,21 @@
+from django.test import TestCase
+
+__test__ = {"doctest": """
+>>> from jpic import tree
+>>> t = tree.BaseTree()
+>>> t.render()
+'<ul></ul>'
+>>> t.render(ul=False)
+''
+>>> t.append(tree.LinkItem('foo', '/bar'))
+>>> t.render(ul=False)
+'<li><a href="/bar" title="foo">foo</a></li>'
+>>> t.render()
+'<ul><li><a href="/bar" title="foo">foo</a></li></ul>'
+>>> from copy import deepcopy
+>>> tt = deepcopy(t)
+>>> t.append(tt)
+>>> t.render()
+'<ul><li><a href="/bar" title="foo">foo</a></li><ul><li><a href="/bar" title="foo">foo</a></li></ul></ul>'
+"""}
+

@@ -1,0 +1,2 @@
+class JpicException(Exception):
+    pass

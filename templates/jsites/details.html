@@ -5,7 +5,7 @@
 {% block contents %}
 
 <table class="objectinfo">
-    {% for name, field in content_field_objects.items %}
+    {% for name, field in model_field_objects.items %}
     <tr>
         <th>
         {% if field.verbose_name %}
@@ -19,7 +19,7 @@
         {% endif %}
         </th>
         <td>
-            {{ name|model_prop:content_object }}
+            {{ name|model_prop:model_object }}
         </td>
     </tr>
     {% endfor %}

@@ -1,0 +1,17 @@
+#!/bin/bash
+
+config=".vcs.config.sh"
+backupdir="/home/jpic/var/backups"
+rc="0"
+ignore=".gitignore"
+master="master"
+prod="prod"
+version="0"
+doc="DOCUMENTATION"
+objectives=".todo.now"
+readme="README"
+tag="0_alpha0"
+state="alpha"
+logfile=".logfile"
+root="/home/jpic/src/jpic"
+bug="BUGS"
