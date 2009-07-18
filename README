@@ -19,7 +19,7 @@ Planning
 0.0alpha9  use autocomplete widget for fk
 0.0alpha10 allow template overload
 0.1alpha0  Refactor into final structure, particularely for testing
-0.1alpha1  Cover most of the resource module.
+0.1alpha1  Cover most of the resource module with tests and documentation
 ========== =================================================================
 
 Reminder: carto/mmm
