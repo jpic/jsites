@@ -102,19 +102,21 @@ class MediaTest(TestCase):
         result = unicode(m)
 
         expected = u"\n".join([
-            '<link href="/static/jsites/css/base.css" type="text/css" media="all" rel="stylesheet" />',
+            '<link href="%(prefix)scss/base.css" type="text/css" media="all" rel="stylesheet" />',
             '<link href="/base_abs.css" type="text/css" media="all" rel="stylesheet" />',
-            '<link href="/static/jsites/css/my_base.css" type="text/css" media="all" rel="stylesheet" />',
+            '<link href="%(prefix)scss/my_base.css" type="text/css" media="all" rel="stylesheet" />',
             '<link href="/my_base_abs.css" type="text/css" media="all" rel="stylesheet" />',
-            '<link href="/static/jsites/css/base_screen.css" type="text/css" media="screen" rel="stylesheet" />',
+            '<link href="%(prefix)scss/base_screen.css" type="text/css" media="screen" rel="stylesheet" />',
             '<link href="/base_screen_abs.css" type="text/css" media="screen" rel="stylesheet" />',
-            '<link href="/static/jsites/css/my_base_screen.css" type="text/css" media="screen" rel="stylesheet" />',
+            '<link href="%(prefix)scss/my_base_screen.css" type="text/css" media="screen" rel="stylesheet" />',
             '<link href="/my_base_screen_abs.css" type="text/css" media="screen" rel="stylesheet" />',
-            '<script type="text/javascript" src="/static/jsites/js/base.js"></script>',
+            '<script type="text/javascript" src="%(prefix)sjs/base.js"></script>',
             '<script type="text/javascript" src="/base_abs.js"></script>',
-            '<script type="text/javascript" src="/static/jsites/js/my_base.js"></script>',
+            '<script type="text/javascript" src="%(prefix)sjs/my_base.js"></script>',
             '<script type="text/javascript" src="/my_base_abs.js"></script>',
-        ])
+        ]) % {
+            'prefix': settings.JSITES_MEDIA_PREFIX
+        }
 
 
         expected = expected % {'prefix': settings.JSITES_MEDIA_PREFIX}
