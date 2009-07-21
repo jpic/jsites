@@ -11,8 +11,8 @@ class ResourceNode(ResourceBase):
 
     instances = {}
 
-    def get_actions(self):
-        return ('index',)
+    def get_actions_names(self):
+        return ['index',]
      
     def __init__(self, **kwargs):
         # has a registry: is a singleton

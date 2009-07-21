@@ -233,6 +233,9 @@ class ResourceBase(voodoo.ppi):
 
         self.kwargs.update(kwargs)
         return reverse(prefix+action_name, kwargs=kwargs)
+    
+    def get_actions_names(self):
+        return []
     # }}}
     # {{{ template, response
     def get_template(self):
