@@ -1,6 +1,6 @@
-from resources import Node
+from jpic.resources.node import ResourceNode
 
-class ContentNode(Base):
+class ContentNode(ResourceNode):
     """
     In addition to the basic registry of resource.Node, it maintains a registry
     with relations between content classes and resources.

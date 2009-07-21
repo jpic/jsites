@@ -1,9 +1,17 @@
+from django.utils.translation import ugettext_lazy as _
+from django.db.models import fields as django_fields
+from django.db.models import related as django_related
+
+from jpic.resources.base import ResourceBase
+from jpic import voodoo
+
 class ModelResource(ResourceBase):
     def validate(self):
         if self._has('model_class'):
             self._get_or_set('name', self.model_class._meta.verbose_name)
             self._get_or_set('urlname', self.model_class._meta.module_name)
         super(ModelResource, self).validate()
+
     def get_model_class(self):
         """  Return the "model class" used for the contents to display. """
         if self.model_object:
@@ -33,7 +41,7 @@ class ModelResource(ResourceBase):
         """
         names = []
         for field in self.model_class._meta.fields:
-            if not isinstance(field, (fields.AutoField, related.RelatedObject)):
+            if not isinstance(field, (django_fields.AutoField, django_related.RelatedObject)):
                 names.append(field.name)
         
         for field in self.model_class._meta.many_to_many:
@@ -109,13 +117,13 @@ class ModelResource(ResourceBase):
         self.add_to_context('model_object')
         self.add_to_context('model_field_names')
         self.add_to_context('model_field_objects')
-    details = setopt(details, urlname='details', urlregex=r'^(?P<model_id>.+)/$', verbose_name='détails')
+    details = voodoo.setopt(details, urlname='details', urlregex=r'^(?P<model_id>.+)/$', verbose_name=_('details'))
 
     def get_reverse_fk_field_names(self):
         names = []
         for name in self.model_class._meta.get_all_field_names():
             field = self.model_class._meta.get_field_by_name(name)[0]
-            if isinstance(field, related.RelatedObject) and isinstance(field.field, related.ForeignKey):
+            if isinstance(field, django_related.RelatedObject) and isinstance(field, django_related.ForeignKey):
                 names.append(name)
         return names
 
@@ -136,3 +144,9 @@ class ModelResource(ResourceBase):
             if not field.blank and not field.null:
                 required.append(name)
         return required
+
+    def get_actions_names(self):
+        names = super(ModelResource, self).get_actions_names()
+        names.append('details')
+        names.append('list')
+        return names

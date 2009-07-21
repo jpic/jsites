@@ -1,8 +1,31 @@
+from django.utils.translation import ugettext_lazy as _
+from django.conf import settings
+from django.forms.models import modelform_factory, inlineformset_factory, modelformset_factory
+from django.db.models import fields as django_fields
+from django.db.models import related as django_related
+# admin stuff
+from django.contrib.admin import widgets as admin_widgets
+
+from jpic.resources.model.resource import ModelResource
+from jpic import voodoo
+from jpic import forms as jpic_forms
+
 class ModelFormResource(ModelResource):
-    actions = ('create', 'list', 'edit', 'details', 'delete')
+    def get_actions_names(self):
+        names = [
+            'create',
+            'delete',
+            'edit',
+        ]
+
+        for name in super(ModelFormResource, self).get_actions_names():
+            names.append(name)
+
+        return names
+
     def delete(self):
         raise NotImplemented()
-    delete = setopt(delete, urlname='delete', urlregex=r'^delete/(?P<model_id>.+)/$', verbose_name=u'éffacer')
+    delete = voodoo.setopt(delete, urlname='delete', urlregex=r'^delete/(?P<model_id>.+)/$', verbose_name=_('delete'))
 
     # {{{ menu, get_action_url
     def get_menu_items(self):
@@ -105,7 +128,7 @@ class ModelFormResource(ModelResource):
         Actually, we use our own set of helpers to support formsets
         as well.
         """
-        adminform_object = Form(self.form_object,
+        adminform_object = jpic_forms.FormHelper(self.form_object,
             self.merge_formset_objects, self.fieldsets,
             self.prepopulated_fields)
         return adminform_object
@@ -162,12 +185,12 @@ class ModelFormResource(ModelResource):
     def edit(self):
         """ Action wrapping self.forms, requiring a model_id """
         return self.forms()
-    edit = setopt(edit, urlname='edit', urlregex=r'^edit/(?P<model_id>.+)/$', verbose_name=u'modifier')
+    edit = voodoo.setopt(edit, urlname='edit', urlregex=r'^edit/(?P<model_id>.+)/$', verbose_name=_('edit'))
 
     def create(self):
         """ Action wrapping around self.forms, requiring no model_id """
         return self.forms()
-    create = setopt(create, urlname='create', urlregex=r'^create/$', verbose_name=u'créer (nouveau)')
+    create = voodoo.setopt(create, urlname='create', urlregex=r'^create/$', verbose_name=_('create new'))
 
     def save_form(self):
         """ Saves self.form_object """
@@ -203,11 +226,11 @@ class ModelFormResource(ModelResource):
         kwargs = {}
         if dbfield.name in self.wysiwyg_field_names:
             kwargs['widget'] = widgets.WysiwygWidget
-        elif isinstance(dbfield, fields.DateField):
+        elif isinstance(dbfield, django_fields.DateField):
             kwargs['widget'] = admin_widgets.AdminDateWidget
-        elif isinstance(dbfield, fields.DateTimeField):
+        elif isinstance(dbfield, django_fields.DateTimeField):
             kwargs['widget'] = admin_widgets.AdminDateTimeWidget
-        elif isinstance(dbfield, fields.TimeField):
+        elif isinstance(dbfield, django_fields.TimeField):
             kwargs['widget'] = admin_widgets.AdminTimeWidget
 
         if self.action_name == 'list':
@@ -523,6 +546,6 @@ class ModelFormResource(ModelResource):
         self.add_to_context('model_field_names')
         self.add_to_context('model_field_objects')
         # additionnal fancey links
-    list = setopt(list, urlname='list', urlregex=r'^$', verbose_name=u'liste')
+    list = voodoo.setopt(list, urlname='list', urlregex=r'^$', verbose_name=_('list'))
     # }}}
 
