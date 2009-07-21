@@ -261,10 +261,14 @@ class ResourceBase(voodoo.ppi):
     def get_media_path(self):
         return None
     def get_media(self):
-        return voodoo.converter(js = self.js, css = self.css)
+        return voodoo.converter(js=self.js, css=self.css)
     def get_js(self):
+        if self.parent:
+            return self.parent.js
         return []
     def get_css(self):
+        if self.parent:
+            return self.parent.css
         return {
             'all': [],
             'screen': [],
