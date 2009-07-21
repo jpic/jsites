@@ -1,3 +1,6 @@
+from django.conf.urls import defaults as urls
+from django.conf import settings
+
 from jpic.voodoo import setopt
 
 from base import ResourceBase
